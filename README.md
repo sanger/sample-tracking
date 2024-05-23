@@ -23,10 +23,6 @@ Sample Tracking is a project aimed at managing and updating the SQL views of our
 3. Script Functionality: Similar to the UAT update script, this script likely generates a runner SQL file with commands to update the production warehouse.
 4. Password Prompt: During script execution, the user is prompted to enter the password for the production warehouse's admin user.
 
-## Using the cat_sequence.py file
-This script outputs all the SQL contents of the files listed in `sequence.txt`.
-Use `./cat_sequence.py -h` to review the possible arguments.
-
 ## Useful Links
 - [Sample tracking report](https://ssg-confluence.internal.sanger.ac.uk/display/PSDPUB/Sample+Tracking+Report)
 - [Tableau reporting](https://globalreporting.internal.sanger.ac.uk/views/SeqOpsSampleTracking/SampleTracking?:iid=1&:isGuestRedirectFromVizportal=y&:embed=y)
