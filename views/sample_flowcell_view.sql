@@ -15,6 +15,7 @@ SELECT
   iseq_product_metrics.id_run,
   study.id_study_tmp,
   study.name study_name,
+  study.id_study_lims,
   UNHEX(REPLACE(sample.uuid_sample_lims, '-', '')) sample_uuid,
   iseq_flowcell.pipeline_id_lims,
   iseq_flowcell.cost_code,

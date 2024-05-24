@@ -10,6 +10,7 @@ WITH sample_events AS (
 
 SELECT
     sample_flowcell_view.study_name,
+    sample_flowcell_view.id_study_lims AS study_id,
     MIN(IF(sample_events.event_type = 'sample_manifest.updated', sample_events.occured_at, NULL)) manifest_uploaded,
     sample_flowcell_view.labware_human_barcode manifest_plate_barcode,
     sample_flowcell_view.pipeline_id_lims library_type,
