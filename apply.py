@@ -5,7 +5,7 @@ Deployment script for reporting views.
 """
 # dr6
 
-
+import sys
 import os
 import re
 import argparse
@@ -24,6 +24,7 @@ SCHEMAS = ['reporting', 'warehouse', 'events']
 class Env(Enum):
     UAT = 'uat'
     PROD = 'prod'
+    LOCAL = 'local'
 
     @property
     def group(self):
@@ -89,6 +90,8 @@ def parse_args():
         dest='env', help='select the UAT environment')
     env.add_argument('--prod', '--production', action='store_const', const=Env.PROD,
         dest='env', help='select the production environment')
+    env.add_argument('--local', action='store_const', const=Env.LOCAL,
+        dest='env', help='select the local environment')
     parser.add_argument('--show', action='store_true',
         help="show the SQL without executing it")
     parser.add_argument('filenames', metavar='FILENAME', nargs='*',
@@ -105,7 +108,10 @@ def read_config():
 def main():
     args = parse_args()
     env = args.env
-    config = read_config()[env.group]
+    config = read_config()
+    if env.group not in config:
+        sys.exit(f'Environment not found in config: {env.group}')
+    config = config[env.group]
     contents = read_files(args.filenames)
     contents = fix_content(contents, config)
     if args.show:
