@@ -5,7 +5,7 @@ WITH sample_events AS (
     FROM [events].flat_events_view
     WHERE role_type = 'sample'
       AND event_type IN ('sample_manifest.updated', 'labware.received', 'library_start', 'library_complete', 'sequencing_start', 'sequencing_complete')
-      AND occured_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+      AND occured_at >= DATE_SUB(NOW(), INTERVAL 2 YEAR)
 )
 
 SELECT
