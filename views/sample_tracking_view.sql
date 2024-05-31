@@ -14,7 +14,7 @@ SELECT
     MIN(IF(sample_events.event_type = 'sample_manifest.updated', sample_events.occured_at, NULL)) manifest_uploaded,
     sample_flowcell_view.labware_human_barcode manifest_plate_barcode,
     sample_flowcell_view.pipeline_id_lims library_type,
-    sample_flowcell_view.cost_code,
+    sample_flowcell_view.sequencing_cost_code,
     sample_flowcell_view.instrument_model platform,
     MIN(IF(sample_events.event_type = 'labware.received', sample_events.occured_at, NULL)) labware_received,
     COUNT(DISTINCT(IF(sample_flowcell_view.qc_early IS NOT NULL, sample_flowcell_view.sample_uuid, NULL))) work_started_count, -- Count number of unique samples for this plate that have non-null QC timestamps for dilution

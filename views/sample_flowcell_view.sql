@@ -21,7 +21,7 @@ SELECT
   study.id_study_lims,
   UNHEX(REPLACE(sample.uuid_sample_lims, '-', '')) sample_uuid,
   iseq_flowcell.pipeline_id_lims,
-  iseq_flowcell.cost_code,
+  iseq_flowcell.cost_code AS sequencing_cost_code,
   iseq_run_lane_metrics.instrument_model,
   stock_resource.id_stock_resource_tmp,
   stock_resource.labware_human_barcode,
