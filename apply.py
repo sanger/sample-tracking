@@ -120,7 +120,7 @@ def main():
             print()
         return
     if (config.getboolean('check', fallback=True)
-            and not confirm('Are you ready to update {env.name}?')):
+            and not confirm(f'Are you ready to update {env.name}?')):
         return
     apply(config, contents)
 
