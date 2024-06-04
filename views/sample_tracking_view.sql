@@ -5,7 +5,7 @@ WITH sample_events AS (
     FROM [events].flat_events_view
     WHERE role_type = 'sample'
       AND event_type IN ('sample_manifest.updated', 'labware.received', 'library_start', 'library_complete', 'sequencing_start', 'sequencing_complete')
-      AND occured_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+      AND occured_at >= DATE_SUB(NOW(), INTERVAL 2 YEAR)
 )
 
 SELECT
@@ -13,9 +13,9 @@ SELECT
     sample_flowcell_view.id_study_lims AS study_id,
     MIN(IF(sample_events.event_type = 'sample_manifest.updated', sample_events.occured_at, NULL)) manifest_uploaded,
     sample_flowcell_view.labware_human_barcode manifest_plate_barcode,
-    sample_flowcell_view.pipeline_id_lims library_type,
-    sample_flowcell_view.cost_code,
-    sample_flowcell_view.instrument_model platform,
+    GROUP_CONCAT(DISTINCT sample_flowcell_view.pipeline_id_lims SEPARATOR ';') AS library_type,
+    GROUP_CONCAT(DISTINCT sample_flowcell_view.sequencing_cost_code SEPARATOR ';') AS sequencing_cost_code,
+    GROUP_CONCAT(DISTINCT sample_flowcell_view.instrument_model SEPARATOR ';') AS platform,
     MIN(IF(sample_events.event_type = 'labware.received', sample_events.occured_at, NULL)) labware_received,
     COUNT(DISTINCT(IF(sample_flowcell_view.qc_early IS NOT NULL, sample_flowcell_view.sample_uuid, NULL))) work_started_count, -- Count number of unique samples for this plate that have non-null QC timestamps for dilution
     MIN(sample_flowcell_view.qc_early) work_started_first,

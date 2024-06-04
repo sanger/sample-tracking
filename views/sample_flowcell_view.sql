@@ -1,14 +1,17 @@
 CREATE OR REPLACE VIEW sample_flowcell_view AS
-  
- -- limit to studies that have something submitted in the last six months
+
+ -- limit to studies that have something submitted recently
 WITH study_names AS (
-  SELECT DISTINCT(subject_friendly_name) study_name
-  FROM [events].flat_events_view
-  WHERE role_type = 'study'
-  AND event_type = 'sample_manifest.updated'
-  AND occured_at >=  DATE_SUB(NOW(), INTERVAL 6 MONTH)
+  SELECT DISTINCT s.friendly_name study_name
+  FROM [events].role_types rt
+    JOIN [events].roles r ON (r.role_type_id=rt.id)
+    JOIN [events].subjects s ON (r.subject_id=s.id)
+    JOIN [events].events e ON (r.event_id=e.id)
+    JOIN [events].event_types et ON (e.event_type_id=et.id)
+  WHERE rt.key='study'
+    AND et.key='sample_manifest.updated'
+    AND e.occured_at >= NOW() - INTERVAL 2 YEAR
 )
-  
 SELECT
   iseq_flowcell.id_iseq_flowcell_tmp,
   iseq_product_metrics.id_iseq_product,
@@ -18,7 +21,7 @@ SELECT
   study.id_study_lims,
   UNHEX(REPLACE(sample.uuid_sample_lims, '-', '')) sample_uuid,
   iseq_flowcell.pipeline_id_lims,
-  iseq_flowcell.cost_code,
+  iseq_flowcell.cost_code AS sequencing_cost_code,
   iseq_run_lane_metrics.instrument_model,
   stock_resource.id_stock_resource_tmp,
   stock_resource.labware_human_barcode,
@@ -30,19 +33,21 @@ FROM study_names
 JOIN [warehouse].study ON study.name = study_names.study_name
 JOIN [warehouse].stock_resource ON stock_resource.id_study_tmp = study.id_study_tmp
 JOIN [warehouse].sample ON sample.id_sample_tmp = stock_resource.id_sample_tmp
-  
-LEFT JOIN [warehouse].qc_result ON qc_result.id_sample_tmp = sample.id_sample_tmp
+
+LEFT JOIN [warehouse].qc_result ON (
+  qc_result.id_sample_tmp = sample.id_sample_tmp
+  AND qc_result.assay = 'Working Dilution - Plate Reader v1.0'
+)
   
 LEFT JOIN [warehouse].iseq_flowcell ON iseq_flowcell.id_sample_tmp = sample.id_sample_tmp
 LEFT JOIN [warehouse].iseq_product_metrics ON iseq_product_metrics.id_iseq_flowcell_tmp = iseq_flowcell.id_iseq_flowcell_tmp
 LEFT JOIN [warehouse].iseq_run_lane_metrics ON iseq_run_lane_metrics.id_run = iseq_product_metrics.id_run
   
 WHERE
--- allow pipelines where no QC result is measure OR where it is measured in the last 6 months
-  [warehouse].qc_result.assay IS NULL
+-- allow pipelines where no QC result is measured OR where it is measured recently
+  qc_result.id_qc_result_tmp IS NULL
   OR
-    ([warehouse].qc_result.assay = 'Working Dilution - Plate Reader v1.0'
-      AND [warehouse].qc_result.recorded_at >=  DATE_SUB(NOW(), INTERVAL 6 MONTH) )
+  qc_result.recorded_at >= NOW() - INTERVAL 2 YEAR
  
  -- by grouping here we are assuming sequencing only happens once
 GROUP BY sample_uuid
