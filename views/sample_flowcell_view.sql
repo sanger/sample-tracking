@@ -1,8 +1,8 @@
 CREATE OR REPLACE VIEW sample_flowcell_view AS
 
- -- limit to studies that have something submitted recently
-WITH study_names AS (
-  SELECT DISTINCT s.friendly_name study_name
+-- limit to studies that have something submitted recently
+WITH study_uuids AS (
+  SELECT BIN_TO_UUID(s.uuid) AS uuid
   FROM [events].role_types rt
     JOIN [events].roles r ON (r.role_type_id=rt.id)
     JOIN [events].subjects s ON (r.subject_id=s.id)
@@ -11,6 +11,7 @@ WITH study_names AS (
   WHERE rt.key='study'
     AND et.key='sample_manifest.updated'
     AND e.occured_at >= NOW() - INTERVAL 2 YEAR
+  GROUP BY s.id
 )
 SELECT
   iseq_flowcell.id_iseq_flowcell_tmp,
@@ -19,7 +20,7 @@ SELECT
   study.id_study_tmp,
   study.name study_name,
   study.id_study_lims,
-  UNHEX(REPLACE(sample.uuid_sample_lims, '-', '')) sample_uuid,
+  UUID_TO_BIN(sample.uuid_sample_lims) AS sample_uuid,
   iseq_flowcell.pipeline_id_lims,
   iseq_flowcell.cost_code AS sequencing_cost_code,
   iseq_run_lane_metrics.instrument_model,
@@ -28,9 +29,9 @@ SELECT
   MIN(qc_result.recorded_at) qc_early,
   MAX(qc_result.recorded_at) qc_late
   
-FROM study_names
+FROM study_uuids
   
-JOIN [warehouse].study ON study.name = study_names.study_name
+JOIN [warehouse].study ON study.uuid_study_lims = study_uuids.uuid
 JOIN [warehouse].stock_resource ON stock_resource.id_study_tmp = study.id_study_tmp
 JOIN [warehouse].sample ON sample.id_sample_tmp = stock_resource.id_sample_tmp
 
@@ -50,5 +51,5 @@ WHERE
   qc_result.recorded_at >= NOW() - INTERVAL 2 YEAR
  
  -- by grouping here we are assuming sequencing only happens once
-GROUP BY sample_uuid
+GROUP BY id_sample_tmp
 ;
