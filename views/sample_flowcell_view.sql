@@ -51,5 +51,5 @@ WHERE
   qc_result.recorded_at >= NOW() - INTERVAL 2 YEAR
  
  -- by grouping here we are assuming sequencing only happens once
-GROUP BY id_sample_tmp
+GROUP BY sample.id_sample_tmp
 ;
