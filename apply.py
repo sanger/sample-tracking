@@ -19,7 +19,7 @@ from enum import Enum
 from contextlib import closing
 
 SCHEMAS = ['reporting', 'warehouse', 'events']
-
+DEFAULT_CHARSET = 'utf8'
 
 class Env(Enum):
     UAT = 'uat'
@@ -77,6 +77,7 @@ def apply(config, contents):
         'host': config['host'],
         'port': config.getint('port'),
         'database': config['reporting'],
+        'charset': config.get('charset', DEFAULT_CHARSET),
     }
     with closing(mysql.connector.connect(**db_info)) as con:
         with closing(con.cursor()) as cur:
