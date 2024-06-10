@@ -4,7 +4,7 @@ WITH sample_events AS (
     SELECT event_type, occured_at, subject_uuid_bin
     FROM [events].flat_events_view
     WHERE role_type = 'sample'
-      AND event_type IN ('sample_manifest.updated', 'labware.received', 'library_start', 'library_complete', 'sequencing_start', 'sequencing_complete')
+      AND event_type IN ('sample_manifest.updated', 'labware.received', 'library_start', 'library_complete', 'sequencing_start', 'sequencing_complete', 'order_made')
       AND occured_at >= DATE_SUB(NOW(), INTERVAL 2 YEAR)
 )
 
@@ -17,9 +17,12 @@ SELECT
     GROUP_CONCAT(DISTINCT sample_flowcell_view.sequencing_cost_code SEPARATOR ';') AS sequencing_cost_code,
     GROUP_CONCAT(DISTINCT sample_flowcell_view.instrument_model SEPARATOR ';') AS platform,
     MIN(IF(sample_events.event_type = 'labware.received', sample_events.occured_at, NULL)) labware_received,
-    COUNT(DISTINCT(IF(sample_flowcell_view.qc_early IS NOT NULL, sample_flowcell_view.sample_uuid, NULL))) work_started_count, -- Count number of unique samples for this plate that have non-null QC timestamps for dilution
-    MIN(sample_flowcell_view.qc_early) work_started_first,
-    MAX(sample_flowcell_view.qc_late) work_started_last,
+    COUNT(DISTINCT(IF(sample_events.event_type = 'order_made', sample_events.subject_uuid_bin, NULL))) order_made_count,
+    MIN(IF(sample_events.event_type = 'order_made', sample_events.occured_at, NULL)) order_made_first,
+    MAX(IF(sample_events.event_type = 'order_made', sample_events.occured_at, NULL)) order_made_last,
+    COUNT(DISTINCT(IF(sample_flowcell_view.qc_early IS NOT NULL, sample_flowcell_view.sample_uuid, NULL))) working_dilution_count, -- Count number of unique samples for this plate that have non-null QC timestamps for dilution
+    MIN(sample_flowcell_view.qc_early) working_dilution_first,
+    MAX(sample_flowcell_view.qc_late) working_dilution_last,
     COUNT(DISTINCT(IF(sample_events.event_type = 'library_start', sample_events.subject_uuid_bin, NULL))) library_start_count,
     MIN(IF(sample_events.event_type = 'library_start', sample_events.occured_at, NULL)) library_start_first,
     MAX(IF(sample_events.event_type = 'library_start', sample_events.occured_at, NULL)) library_start_last,
