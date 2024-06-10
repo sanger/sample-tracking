@@ -71,16 +71,18 @@ def fix_content(contents: list, config) -> list:
 
 def apply(config, contents):
     pw = config.get('password') or getpass()
+    charset = config.get('charset', DEFAULT_CHARSET)
     db_info = {
         'user': config['username'],
         'passwd': pw,
         'host': config['host'],
         'port': config.getint('port'),
         'database': config['reporting'],
-        'charset': config.get('charset', DEFAULT_CHARSET),
+        'charset': charset,
     }
     with closing(mysql.connector.connect(**db_info)) as con:
         with closing(con.cursor()) as cur:
+            cur.execute(f"SET charset '{charset}';") # this should switch to the correct collation
             for stmt in contents:
                 cur.execute(stmt)
 
