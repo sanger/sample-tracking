@@ -34,11 +34,14 @@ SELECT
     MAX(IF(sample_events.event_type = 'sequencing_start', sample_events.occured_at, NULL)) sequencing_run_start_last,
     COUNT(DISTINCT(IF(sample_events.event_type = 'sequencing_complete', sample_events.subject_uuid_bin, NULL))) sequencing_qc_complete_count,
     MIN(IF(sample_events.event_type = 'sequencing_complete', sample_events.occured_at, NULL)) sequencing_qc_complete_first,
-    MAX(IF(sample_events.event_type = 'sequencing_complete', sample_events.occured_at, NULL)) sequencing_qc_complete_last
+    MAX(IF(sample_events.event_type = 'sequencing_complete', sample_events.occured_at, NULL)) sequencing_qc_complete_last,
+    GROUP_CONCAT(DISTINCT irods.irods_root_collection ORDER BY irods.irods_root_collection SEPARATOR '; ' ) AS irods_root_collections
 
 
 FROM [reporting].sample_flowcell_view
     LEFT JOIN sample_events ON (sample_events.subject_uuid_bin = sample_flowcell_view.sample_uuid)
+    LEFT JOIN [reporting].iseq_product_metrics AS product_metrics ON product_metrics.id_iseq_flowcell_tmp = sample_flowcell_view.id_iseq_flowcell_tmp
+    LEFT JOIN [reporting].seq_product_irods_locations irods ON irods.id_product=product_metrics.id_iseq_product
 
 GROUP BY manifest_plate_barcode
 -- filter out plates where we have no real information, but leave in rows where there is something for future debugging / smoke testing
