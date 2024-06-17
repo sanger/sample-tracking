@@ -40,8 +40,8 @@ SELECT
 
 FROM [reporting].sample_flowcell_view
     LEFT JOIN sample_events ON (sample_events.subject_uuid_bin = sample_flowcell_view.sample_uuid)
-    LEFT JOIN [reporting].iseq_product_metrics AS product_metrics ON product_metrics.id_iseq_flowcell_tmp = sample_flowcell_view.id_iseq_flowcell_tmp
-    LEFT JOIN [reporting].seq_product_irods_locations irods ON irods.id_product=product_metrics.id_iseq_product
+    LEFT JOIN [warehouse].iseq_product_metrics AS product_metrics ON product_metrics.id_iseq_flowcell_tmp = sample_flowcell_view.id_iseq_flowcell_tmp
+    LEFT JOIN [warehouse].seq_product_irods_locations irods ON irods.id_product=product_metrics.id_iseq_product
 
 GROUP BY manifest_plate_barcode
 -- filter out plates where we have no real information, but leave in rows where there is something for future debugging / smoke testing
