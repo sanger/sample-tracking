@@ -6,11 +6,19 @@ WITH sample_events AS (
     WHERE role_type = 'sample'
       AND event_type IN ('sample_manifest.updated', 'labware.received', 'library_start', 'library_complete', 'sequencing_start', 'sequencing_complete', 'order_made')
       AND occured_at >= DATE_SUB(NOW(), INTERVAL 2 YEAR)
+),
+labware_manifest_crated_event AS (
+    SELECT event_type, occured_at ,subject_friendly_name
+    FROM [events].flat_events_view
+    WHERE role_type = 'labware'
+    AND event_type =  'sample_manifest.created'
+    AND occured_at >= DATE_SUB(NOW(), INTERVAL 2 YEAR)
 )
 
 SELECT
     sample_flowcell_view.study_name,
     sample_flowcell_view.id_study_lims AS study_id,
+    MIN(IF(labware_manifest_crated_event.event_type, labware_manifest_crated_event.occured_at, NULL)) manifest_created,
     MIN(IF(sample_events.event_type = 'sample_manifest.updated', sample_events.occured_at, NULL)) manifest_uploaded,
     sample_flowcell_view.labware_human_barcode manifest_plate_barcode,
     GROUP_CONCAT(DISTINCT sample_flowcell_view.pipeline_id_lims SEPARATOR ';') AS library_type,
@@ -40,6 +48,7 @@ SELECT
 
 FROM [reporting].sample_flowcell_view
     LEFT JOIN sample_events ON (sample_events.subject_uuid_bin = sample_flowcell_view.sample_uuid)
+    LEFT JOIN labware_manifest_crated_event ON (labware_manifest_crated_event.subject_friendly_name = sample_flowcell_view.labware_human_barcode)
     LEFT JOIN [warehouse].iseq_product_metrics AS product_metrics ON product_metrics.id_iseq_flowcell_tmp = sample_flowcell_view.id_iseq_flowcell_tmp
     LEFT JOIN [warehouse].seq_product_irods_locations irods ON irods.id_product=product_metrics.id_iseq_product
 
