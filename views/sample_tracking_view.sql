@@ -8,17 +8,18 @@ WITH sample_events AS (
       AND occured_at >= DATE_SUB(NOW(), INTERVAL 2 YEAR)
 ),
 labware_manifest_created_event AS (
-    SELECT event_type, occured_at ,subject_friendly_name
+    SELECT MIN(occured_at) AS occured_at, subject_friendly_name
     FROM [events].flat_events_view
     WHERE role_type = 'labware'
-    AND event_type =  'sample_manifest.created'
-    AND occured_at >= DATE_SUB(NOW(), INTERVAL 2 YEAR)
+      AND event_type =  'sample_manifest.created'
+      AND occured_at >= DATE_SUB(NOW(), INTERVAL 2 YEAR)
+    GROUP BY subject_friendly_name
 )
 
 SELECT
     sample_flowcell_view.study_name,
     sample_flowcell_view.id_study_lims AS study_id,
-    MIN(labware_manifest_created_event.occured_at) manifest_created,
+    labware_manifest_created_event.occured_at AS manifest_created,
     MIN(IF(sample_events.event_type = 'sample_manifest.updated', sample_events.occured_at, NULL)) manifest_uploaded,
     sample_flowcell_view.labware_human_barcode manifest_plate_barcode,
     GROUP_CONCAT(DISTINCT sample_flowcell_view.pipeline_id_lims SEPARATOR ';') AS library_type,
