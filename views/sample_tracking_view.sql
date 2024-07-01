@@ -1,11 +1,12 @@
 CREATE OR REPLACE VIEW [reporting].sample_tracking_view AS
 
 WITH sample_events AS (
-    SELECT event_type, occured_at, subject_uuid_bin
+    SELECT wh_event_id, event_type, occured_at, subject_uuid_bin
     FROM [events].flat_events_view
     WHERE role_type = 'sample'
       AND event_type IN ('sample_manifest.updated', 'labware.received', 'library_start', 'library_complete', 'sequencing_start', 'sequencing_complete', 'order_made')
       AND occured_at >= DATE_SUB(NOW(), INTERVAL 2 YEAR)
+    GROUP BY wh_event_id, subject_uuid_bin
 ),
 labware_manifest_created_event AS (
     SELECT MIN(occured_at) AS occured_at, subject_friendly_name
@@ -41,7 +42,8 @@ SELECT
     COUNT(DISTINCT(IF(sample_events.event_type = 'sequencing_start', sample_events.subject_uuid_bin, NULL))) sequencing_run_start_count,
     MIN(IF(sample_events.event_type = 'sequencing_start', sample_events.occured_at, NULL)) sequencing_run_start_first,
     MAX(IF(sample_events.event_type = 'sequencing_start', sample_events.occured_at, NULL)) sequencing_run_start_last,
-    COUNT(DISTINCT(IF(sample_events.event_type = 'sequencing_complete', sample_events.subject_uuid_bin, NULL))) sequencing_qc_complete_count,
+    COUNT(DISTINCT(IF(sample_events.event_type = 'sequencing_complete' AND md.value='failed', sample_events.subject_uuid_bin, NULL))) sequencing_qc_fail_count,
+    COUNT(DISTINCT(IF(sample_events.event_type = 'sequencing_complete' AND md.value='passed', sample_events.subject_uuid_bin, NULL))) sequencing_qc_pass_count,
     MIN(IF(sample_events.event_type = 'sequencing_complete', sample_events.occured_at, NULL)) sequencing_qc_complete_first,
     MAX(IF(sample_events.event_type = 'sequencing_complete', sample_events.occured_at, NULL)) sequencing_qc_complete_last,
     GROUP_CONCAT(DISTINCT irods.irods_root_collection ORDER BY irods.irods_root_collection SEPARATOR '; ' ) AS irods_root_collections
@@ -52,6 +54,11 @@ FROM [reporting].sample_flowcell_view
     LEFT JOIN labware_manifest_created_event ON (labware_manifest_created_event.subject_friendly_name = sample_flowcell_view.labware_human_barcode)
     LEFT JOIN [warehouse].iseq_product_metrics AS product_metrics ON product_metrics.id_iseq_flowcell_tmp = sample_flowcell_view.id_iseq_flowcell_tmp
     LEFT JOIN [warehouse].seq_product_irods_locations irods ON irods.id_product=product_metrics.id_iseq_product
+    LEFT JOIN [events].metadata md ON (
+        sample_events.event_type='sequencing_complete'
+        AND sample_events.wh_event_id=md.event_id
+        AND md.key='result'
+    )
 
 GROUP BY manifest_plate_barcode
 -- filter out plates where we have no real information, but leave in rows where there is something for future debugging / smoke testing
@@ -60,5 +67,5 @@ HAVING manifest_uploaded IS NOT NULL
     OR library_start_count != 0
     OR library_complete_count != 0
     OR sequencing_run_start_count != 0
-    OR sequencing_qc_complete_count !=0
+    OR sequencing_qc_complete_last IS NOT NULL
 ;
