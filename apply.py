@@ -110,20 +110,35 @@ def read_subs(string: str) -> (list, str):
 def close_paren_index(string, start):
     in_quote = None
     in_comment = False
+    in_block_comment = False
+    skip = 0
     paren_count = 1
     quotes = set("`'\"")
     for i in range(start, len(string)):
+        if skip:
+            skip -= 1
+            continue
         ch = string[i]
         if in_comment:
             if ch=='\n':
                 in_comment = False
             continue
+        if in_block_comment:
+            if ch=='/' and string[i-1]=='*':
+                in_block_comment = False
+            continue
         if in_quote:
             if ch==in_quote:
                 in_quote = None
+            elif ch=='\\' and in_quote != '`':
+                skip = 1
             continue
         if ch=='-' and string[i-1]=='-':
             in_comment = True
+            continue
+        if ch=='*' and string[i-1]=='/':
+            in_block_comment = True
+            skip = 1
             continue
         if ch in quotes:
             in_quote = ch
@@ -134,7 +149,7 @@ def close_paren_index(string, start):
             paren_count -= 1
             if paren_count==0:
                 return i
-    raise ValueError("Close paren not found");
+    raise ValueError("Close paren not found")
 
 def read_files(filenames: list|None) -> list:
     if not filenames:
