@@ -27,23 +27,23 @@ SELECT
     GROUP_CONCAT(DISTINCT sample_flowcell_view.sequencing_cost_code SEPARATOR ';') AS sequencing_cost_code,
     GROUP_CONCAT(DISTINCT sample_flowcell_view.instrument_model SEPARATOR ';') AS platform,
     MIN(IF(sample_events.event_type = 'labware.received', sample_events.occured_at, NULL)) labware_received,
-    COUNT(DISTINCT(IF(sample_events.event_type = 'order_made', sample_events.subject_uuid_bin, NULL))) order_made_count,
+    COUNT(DISTINCT(IF(sample_events.event_type = 'order_made', sample_events.subject_uuid_bin, NULL))) order_made_samples,
     MIN(IF(sample_events.event_type = 'order_made', sample_events.occured_at, NULL)) order_made_first,
     MAX(IF(sample_events.event_type = 'order_made', sample_events.occured_at, NULL)) order_made_last,
-    COUNT(DISTINCT(IF(sample_flowcell_view.qc_early IS NOT NULL, sample_flowcell_view.sample_uuid, NULL))) working_dilution_count, -- Count number of unique samples for this plate that have non-null QC timestamps for dilution
+    COUNT(DISTINCT(IF(sample_flowcell_view.qc_early IS NOT NULL, sample_flowcell_view.sample_uuid, NULL))) working_dilution_samples, -- Count number of unique samples for this plate that have non-null QC timestamps for dilution
     MIN(sample_flowcell_view.qc_early) working_dilution_first,
     MAX(sample_flowcell_view.qc_late) working_dilution_last,
-    COUNT(DISTINCT(IF(sample_events.event_type = 'library_start', sample_events.subject_uuid_bin, NULL))) library_start_count,
+    COUNT(DISTINCT(IF(sample_events.event_type = 'library_start', sample_events.subject_uuid_bin, NULL))) library_start_samples,
     MIN(IF(sample_events.event_type = 'library_start', sample_events.occured_at, NULL)) library_start_first,
     MAX(IF(sample_events.event_type = 'library_start', sample_events.occured_at, NULL)) library_start_last,
-    COUNT(DISTINCT(IF(sample_events.event_type = 'library_complete', sample_events.subject_uuid_bin, NULL))) library_complete_count,
+    COUNT(DISTINCT(IF(sample_events.event_type = 'library_complete', sample_events.subject_uuid_bin, NULL))) library_complete_samples,
     MIN(IF(sample_events.event_type = 'library_complete', sample_events.occured_at, NULL)) library_complete_first,
     MAX(IF(sample_events.event_type = 'library_complete', sample_events.occured_at, NULL)) library_complete_last,
-    COUNT(DISTINCT(IF(sample_events.event_type = 'sequencing_start', sample_events.subject_uuid_bin, NULL))) sequencing_run_start_count,
+    COUNT(DISTINCT(IF(sample_events.event_type = 'sequencing_start', sample_events.subject_uuid_bin, NULL))) sequencing_run_start_samples,
     MIN(IF(sample_events.event_type = 'sequencing_start', sample_events.occured_at, NULL)) sequencing_run_start_first,
     MAX(IF(sample_events.event_type = 'sequencing_start', sample_events.occured_at, NULL)) sequencing_run_start_last,
-    COUNT(DISTINCT(IF(sample_events.event_type = 'sequencing_complete' AND md.value='failed', sample_events.subject_uuid_bin, NULL))) sequencing_qc_fail_count,
-    COUNT(DISTINCT(IF(sample_events.event_type = 'sequencing_complete' AND md.value='passed', sample_events.subject_uuid_bin, NULL))) sequencing_qc_pass_count,
+    COUNT(DISTINCT(IF(sample_events.event_type = 'sequencing_complete' AND md.value='failed', sample_events.subject_uuid_bin, NULL))) sequencing_qc_fail_samples,
+    COUNT(DISTINCT(IF(sample_events.event_type = 'sequencing_complete' AND md.value='passed', sample_events.subject_uuid_bin, NULL))) sequencing_qc_pass_samples,
     MIN(IF(sample_events.event_type = 'sequencing_complete', sample_events.occured_at, NULL)) sequencing_qc_complete_first,
     MAX(IF(sample_events.event_type = 'sequencing_complete', sample_events.occured_at, NULL)) sequencing_qc_complete_last,
     GROUP_CONCAT(DISTINCT irods.irods_root_collection ORDER BY irods.irods_root_collection SEPARATOR '; ' ) AS irods_root_collections
@@ -64,8 +64,8 @@ GROUP BY manifest_plate_barcode
 -- filter out plates where we have no real information, but leave in rows where there is something for future debugging / smoke testing
 HAVING manifest_uploaded IS NOT NULL
     OR labware_received IS NOT NULL
-    OR library_start_count != 0
-    OR library_complete_count != 0
-    OR sequencing_run_start_count != 0
+    OR library_start_samples != 0
+    OR library_complete_samples != 0
+    OR sequencing_run_start_samples != 0
     OR sequencing_qc_complete_last IS NOT NULL
 ;
