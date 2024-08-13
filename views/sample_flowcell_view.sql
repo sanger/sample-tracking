@@ -20,6 +20,7 @@ SELECT
   study.id_study_tmp,
   study.name study_name,
   study.id_study_lims,
+  study.data_access_group,
   UUID_TO_BIN(sample.uuid_sample_lims) AS sample_uuid,
   iseq_flowcell.pipeline_id_lims,
   iseq_flowcell.cost_code AS sequencing_cost_code,

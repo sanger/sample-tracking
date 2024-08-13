@@ -20,6 +20,7 @@ labware_manifest_created_event AS (
 SELECT
     sample_flowcell_view.study_name,
     sample_flowcell_view.id_study_lims AS study_id,
+    sample_flowcell_view.data_access_group,
     labware_manifest_created_event.occured_at AS manifest_created,
     MIN(IF(sample_events.event_type = 'sample_manifest.updated', sample_events.occured_at, NULL)) manifest_uploaded,
     sample_flowcell_view.labware_human_barcode manifest_plate_barcode,
@@ -47,7 +48,6 @@ SELECT
     MIN(IF(sample_events.event_type = 'sequencing_complete', sample_events.occured_at, NULL)) sequencing_qc_complete_first,
     MAX(IF(sample_events.event_type = 'sequencing_complete', sample_events.occured_at, NULL)) sequencing_qc_complete_last,
     GROUP_CONCAT(DISTINCT irods.irods_root_collection ORDER BY irods.irods_root_collection SEPARATOR '; ' ) AS irods_root_collections
-
 
 FROM [reporting].sample_flowcell_view
     LEFT JOIN sample_events ON (sample_events.subject_uuid_bin = sample_flowcell_view.sample_uuid)
