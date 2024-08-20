@@ -28,7 +28,7 @@ SELECT
     AVG(iseq_product_metrics.q20_yield_kb_forward_read + iseq_product_metrics.q20_yield_kb_reverse_read) AS q20yield,
     qc_complete_date
 FROM
-    iseq_run
+    [warehouse].iseq_run
         INNER JOIN
     (
         -- Inner query 1
@@ -41,8 +41,8 @@ FROM
             id_run,
             MIN(date) AS qc_complete_date
         FROM
-            iseq_run_status
-                INNER JOIN iseq_run_status_dict
+            [warehouse].iseq_run_status
+                INNER JOIN [warehouse].iseq_run_status_dict
                            ON iseq_run_status_dict.id_run_status_dict = iseq_run_status.id_run_status_dict
         WHERE
             iseq_run_status_dict.description = 'qc complete'
@@ -52,19 +52,19 @@ FROM
     ) AS qc_complete
     ON qc_complete.id_run = iseq_run.id_run
         LEFT OUTER JOIN
-    iseq_run_info
+    [warehouse].iseq_run_info
     ON iseq_run.id_run = iseq_run_info.id_run
         INNER JOIN
-    iseq_product_metrics
+    [warehouse].iseq_product_metrics
     ON iseq_run.id_run = iseq_product_metrics.id_run
         INNER JOIN
-    iseq_flowcell
+    [warehouse].iseq_flowcell
     ON iseq_product_metrics.id_iseq_flowcell_tmp = iseq_flowcell.id_iseq_flowcell_tmp
         INNER JOIN
-    study
+    [warehouse].study
     ON iseq_flowcell.id_study_tmp = study.id_study_tmp
         INNER JOIN
-    iseq_run_lane_metrics
+    [warehouse].iseq_run_lane_metrics
     ON iseq_product_metrics.id_run = iseq_run_lane_metrics.id_run
         AND iseq_product_metrics.position = iseq_run_lane_metrics.position
         INNER JOIN
@@ -88,7 +88,7 @@ FROM
                     iseq_flowcell.cost_code AS project_cost_code,
                     study.name
                 FROM
-                    iseq_run
+                    [warehouse].iseq_run
                         INNER JOIN
                     (
                         -- Inner query 4
@@ -97,8 +97,8 @@ FROM
                             id_run,
                             MIN(date) AS qc_complete_date
                         FROM
-                            iseq_run_status
-                                INNER JOIN iseq_run_status_dict
+                            [warehouse].iseq_run_status
+                                INNER JOIN [warehouse].iseq_run_status_dict
                                            ON iseq_run_status_dict.id_run_status_dict = iseq_run_status.id_run_status_dict
                         WHERE
                             iseq_run_status_dict.description = 'qc complete'
@@ -108,17 +108,17 @@ FROM
                     ) AS qc_complete
                     ON qc_complete.id_run = iseq_run.id_run
                         INNER JOIN
-                    iseq_product_metrics
+                    [warehouse].iseq_product_metrics
                     ON iseq_run.id_run = iseq_product_metrics.id_run
                         INNER JOIN
-                    iseq_run_lane_metrics
+                    [warehouse].iseq_run_lane_metrics
                     ON iseq_product_metrics.id_run = iseq_run_lane_metrics.id_run
                         AND iseq_product_metrics.position = iseq_run_lane_metrics.position
                         INNER JOIN
-                    iseq_flowcell
+                    [warehouse].iseq_flowcell
                     ON iseq_product_metrics.id_iseq_flowcell_tmp = iseq_flowcell.id_iseq_flowcell_tmp
                         INNER JOIN
-                    study
+                    [warehouse].study
                     ON iseq_flowcell.id_study_tmp = study.id_study_tmp
                 WHERE
                     -- Controls are excluded, see Confluence documentation
