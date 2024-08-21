@@ -20,8 +20,16 @@ from getpass import getpass
 from enum import Enum
 from contextlib import closing
 
-USAGE="""%(prog)s [-h] (--uat | --prod | --local) [--show]
+USAGE = """%(prog)s [-h] (--uat | --prod | --local) [--show]
                 FILENAME ... [--inline FN ...]"""
+
+EXPORT_ON = '''
+@set maxrows -1;
+@export on;
+@export set filename="{file}" format="Excel";
+'''
+EXPORT_OFF = '@export off;'
+
 
 SCHEMAS = ['reporting', 'warehouse', 'events']
 DEFAULT_CHARSET = 'utf8'
@@ -222,11 +230,15 @@ def parse_args():
         dest='env', help='select the local environment')
     parser.add_argument('--show', action='store_true',
         help='show the SQL without executing it')
+    parser.add_argument('--export', '-x', action='store',
+        help='specify Excel file to export data to')
     parser.add_argument('filenames', metavar='FILENAME', nargs='+',
         help='specify SQL files')
     parser.add_argument('--inline', '-i', nargs='+', metavar='FN',
         help='views to inline')
     args = parser.parse_args()
+    if args.export:
+        args.show = True
     return args
 
 def read_config():
@@ -256,9 +268,13 @@ def main():
     contents = fix_content(contents, config)
 
     if args.show:
+        if args.export:
+            print(EXPORT_ON.format(file=args.export))
         for text in contents:
             print(text)
             print()
+        if args.export:
+            print(EXPORT_OFF)
         return
     if (config.getboolean('check', fallback=True)
             and not confirm(f'Are you ready to update {env.name}?')):
