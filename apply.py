@@ -20,13 +20,13 @@ from getpass import getpass
 from enum import Enum
 from contextlib import closing
 
-USAGE = """%(prog)s [-h] (--uat | --prod | --local) [--show]
-                FILENAME ... [--inline FN ...]"""
+USAGE = """%(prog)s [-h] (--uat | --prod | --local) [--show] [-x FN]
+                FILENAME ... [-i FN ...]"""
 
 EXPORT_ON = '''
 @set maxrows -1;
 @export on;
-@export set filename="{file}" format="Excel";
+@export set {params};
 '''
 EXPORT_OFF = '@export off;'
 
@@ -230,8 +230,8 @@ def parse_args():
         dest='env', help='select the local environment')
     parser.add_argument('--show', action='store_true',
         help='show the SQL without executing it')
-    parser.add_argument('--export', '-x', action='store',
-        help='specify Excel file to export data to')
+    parser.add_argument('--export', '-x', action='store', metavar='FN',
+        help='specify file to export data to')
     parser.add_argument('filenames', metavar='FILENAME', nargs='+',
         help='specify SQL files')
     parser.add_argument('--inline', '-i', nargs='+', metavar='FN',
@@ -269,7 +269,10 @@ def main():
 
     if args.show:
         if args.export:
-            print(EXPORT_ON.format(file=args.export))
+            params = f' filename="{args.export}"'
+            if args.export.lower().endswith('.xlsx'):
+                params += ' format="Excel"'
+            print(EXPORT_ON.format(params=params))
         for text in contents:
             print(text)
             print()
