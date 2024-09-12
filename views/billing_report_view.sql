@@ -8,11 +8,11 @@ SELECT
     study.name                                 AS study_name,
     IF(iseq_run_lane_metrics.instrument_model = 'MiSeq', SUBSTRING_INDEX(SUBSTRING_INDEX(iseq_run_lane_metrics.flowcell_barcode, '-', 2), '-', -1), NULL)
                                                AS reagent_kit_barcode,
-    IF(iseq_run_lane_metrics.instrument_model = 'NovaSeq', ExtractValue(iseq_run_info.run_parameters_xml, '//SbsCycleKit'), NULL)
+    IF(iseq_run_lane_metrics.instrument_model = 'NovaSeq', EXTRACTVALUE(iseq_run_info.run_parameters_xml, '//SbsCycleKit'), NULL)
                                                AS sbs_cycle_kit,
-    IF(INSTR(ExtractValue(iseq_run_info.run_parameters_xml, '//RecipeVersion'), '_CustomPrimer_') > 0, 'Yes', 'No') AS custom_primer_used,
-    SUBSTRING_INDEX(ExtractValue(iseq_run_info.run_parameters_xml, '//ConsumableInfo[Type="Reagent"]/Name'), ' ', 1) AS kit_type,
-    SUBSTRING_INDEX(ExtractValue(iseq_run_info.run_parameters_xml, '//ConsumableInfo[Type="Reagent"]/Name'), ' ', -1) AS cycle_number,
+    IF(INSTR(EXTRACTVALUE(iseq_run_info.run_parameters_xml, '//RecipeVersion'), '_CustomPrimer_') > 0, 'Yes', 'No') AS custom_primer_used,
+    SUBSTRING_INDEX(EXTRACTVALUE(iseq_run_info.run_parameters_xml, '//ConsumableInfo[Type="Reagent"]/Name'), ' ', 1) AS kit_type,
+    SUBSTRING_INDEX(EXTRACTVALUE(iseq_run_info.run_parameters_xml, '//ConsumableInfo[Type="Reagent"]/Name'), ' ', -1) AS cycle_number,
     IF(iseq_run_lane_metrics.qc_seq = 1, 'passed', IF(iseq_run_lane_metrics.qc_seq = '0', 'failed', iseq_run_lane_metrics.qc_seq))
         AS qc_outcome,
     IF(iseq_run.rp__sbs_consumable_version = '1', 'v1', IF(iseq_run.rp__sbs_consumable_version = '3', 'v1.5', iseq_run.rp__sbs_consumable_version))
