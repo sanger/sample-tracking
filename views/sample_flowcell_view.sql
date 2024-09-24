@@ -19,6 +19,8 @@ SELECT
   iseq_product_metrics.id_run,
   study.id_study_tmp,
   study.name study_name,
+  study.programme,
+  study.faculty_sponsor, 
   study.id_study_lims,
   study.data_access_group,
   UUID_TO_BIN(sample.uuid_sample_lims) AS sample_uuid,
