@@ -20,6 +20,8 @@ labware_manifest_created_event AS (
 SELECT
     sample_flowcell_view.study_name,
     sample_flowcell_view.id_study_lims AS study_id,
+    sample_flowcell_view.programme,
+    sample_flowcell_view.faculty_sponsor,
     sample_flowcell_view.data_access_group,
     labware_manifest_created_event.occured_at AS manifest_created,
     MIN(IF(sample_events.event_type = 'sample_manifest.updated', sample_events.occured_at, NULL)) manifest_uploaded,
