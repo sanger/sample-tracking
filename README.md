@@ -23,10 +23,10 @@ pipenv install
 pipenv shell
 ```
 
-- Install the required packages ????
+- To install any new packages, from within a `pipenv shell` run
 
 ```shell
-pipenv install mysql-connector-python
+pipenv install <package-name>
 ```
 
 ## Apply changes
