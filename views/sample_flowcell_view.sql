@@ -25,6 +25,7 @@ SELECT
   study.data_access_group,
   UUID_TO_BIN(sample.uuid_sample_lims) AS sample_uuid,
   iseq_flowcell.pipeline_id_lims,
+  iseq_flowcell.bait_name,
   iseq_flowcell.cost_code AS sequencing_cost_code,
   iseq_run_lane_metrics.instrument_model,
   stock_resource.id_stock_resource_tmp,

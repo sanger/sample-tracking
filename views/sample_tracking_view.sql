@@ -27,6 +27,7 @@ SELECT
     MIN(IF(sample_events.event_type = 'sample_manifest.updated', sample_events.occured_at, NULL)) manifest_uploaded,
     sample_flowcell_view.labware_human_barcode manifest_plate_barcode,
     GROUP_CONCAT(DISTINCT sample_flowcell_view.pipeline_id_lims SEPARATOR ';') AS library_type,
+    GROUP_CONCAT(DISTINCT sample_flowcell_view.bait_name SEPARATOR ';') AS bait_names,
     GROUP_CONCAT(DISTINCT sample_flowcell_view.sequencing_cost_code SEPARATOR ';') AS sequencing_cost_code,
     GROUP_CONCAT(DISTINCT sample_flowcell_view.instrument_model SEPARATOR ';') AS platform,
     MIN(IF(sample_events.event_type = 'labware.received', sample_events.occured_at, NULL)) labware_received,
