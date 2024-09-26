@@ -4,7 +4,43 @@
 Sample Tracking is a project aimed at managing and updating the SQL views of our warehouse. This repository contains SQL scripts and automation workflows to ensure that the warehouse views are kept up-to-date and accurate.
 
 ## Setup
-The `apply.py` script can be used to update the databases. Run it with `apply.py -h` to see usage notes. You may need to install the Python library `mysql.connector`.
+
+- Install `pipenv`, if you haven't already 
+
+```shell
+brew install pipenv
+```
+
+- Create a virtualenv for this project (this creates the Pipfile using your Homebrews default Python), and install any dependencies
+
+```shell
+pipenv install
+```
+
+- To activate this project's virtualenv, run
+
+```shell
+pipenv shell
+```
+
+- Install the required packages ????
+
+```shell
+pipenv install mysql-connector-python
+```
+
+## Apply changes
+
+The `apply.py` script can be used to update the databases. 
+
+Make sure your are within the virtualenv, then run,
+
+```shell
+./apply.py
+```
+
+You can run it with `apply.py -h` to see usage / help notes. 
+
 To save you having to input database passwords when you run the script, you can put your passwords into a config file `passwords.ini` with the following format:
 
 ```
