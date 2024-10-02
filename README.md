@@ -75,8 +75,10 @@ The names that these refer to can be seen inside the `env.ini` config file.
 ## Trouble Shooting
 Occasionally on mlwhd, when query the views, there is error saying 'Illegal mix of collations (utf8_unicode_ci,IMPLICIT) and (utf8_general_ci,IMPLICIT) for operation '=''.  This is because BIN_TO_UUID creates a string using the connection's charset/collation, so they have to be set appropriately for the tables they are joining onto. By running the following:
 
-SET character_set_connection = 'utf8';
-SET collation_connection = 'utf8_unicode_ci';
+```
+ SET character_set_connection = 'utf8';
+ SET collation_connection = 'utf8_unicode_ci';
+```
 
 then rerun the view creation SQL should solve this problem.
 
