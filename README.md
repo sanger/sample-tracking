@@ -23,23 +23,13 @@ pipenv install
 pipenv shell
 ```
 
-- To install any new packages, from within a `pipenv shell` run
+- To install any **new** packages, from within a `pipenv shell` run
 
 ```shell
 pipenv install <package-name>
 ```
 
-## Apply changes
-
-The `apply.py` script can be used to update the databases. 
-
-Make sure your are within the virtualenv, then run,
-
-```shell
-./apply.py
-```
-
-You can run it with `apply.py -h` to see usage / help notes. 
+## Credentials
 
 To save you having to input database passwords when you run the script, you can put your passwords into a config file `passwords.ini` with the following format:
 
@@ -50,9 +40,17 @@ password=uat_password
 [prod]
 password=prod_password
 ```
-(but don't add the passwords file to the git repository)
 
-## Updating a view
+The passwords are in KeePass (but don't add the passwords file to the git repository)
+
+## Apply changes
+
+Make sure your are within the virtualenv. 
+
+The `apply.py` script can be used to update the databases. 
+
+You can run it with `apply.py -h` to see usage / help notes. 
+
 - Create or edit the appropriate file in the `views` folder. Where you have to refer to a database schema, use the following placeholders:
   * `[reporting]`—the reporting schema
   * `[warehouse]`—the warehouse schema
@@ -62,12 +60,12 @@ The names that these refer to can be seen inside the `env.ini` config file.
 
 ## Updating UAT Warehouse:
 1. Pull Request Approval: Once the pull request is approved, the user needs to proceed with the update process.
-2. Execute the `apply.py` script: `./apply.py --uat views/new_view.sql`
+2. Execute the `apply.py` script: `./apply.py --uat views/<name-of-view>.sql`
 
 
 ## Updating Production Warehouse
 1. Testing and Approval: After the changes on the UAT warehouse have been thoroughly tested and approved, the user can proceed with updating the production warehouse.
-2. Execute the `apply.py` script: `./apply.py --prod views/new_view.sql`
+2. Execute the `apply.py` script: `./apply.py --prod views/<name-of-view>.sql`
 3. The script will ask you to confirm that you will update production.
 
 ## Useful Links
