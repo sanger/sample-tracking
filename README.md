@@ -45,8 +45,6 @@ The passwords are in KeePass (but don't add the passwords file to the git reposi
 
 ## Apply changes
 
-Make sure your are within the virtualenv. 
-
 The `apply.py` script can be used to update the databases. 
 
 You can run it with `apply.py -h` to see usage / help notes. 
@@ -60,17 +58,27 @@ The names that these refer to can be seen inside the `env.ini` config file.
 
 ## Updating UAT Warehouse:
 1. Pull Request Approval: Once the pull request is approved, the user needs to proceed with the update process.
-2. Execute the `apply.py` script: `./apply.py --uat views/<name-of-view>.sql`
-
+2. Make sure your are within the virtualenv. 
+3. Execute the `apply.py` script: `./apply.py --uat views/<name-of-view>.sql`
 
 ## Updating Production Warehouse
 1. Testing and Approval: After the changes on the UAT warehouse have been thoroughly tested and approved, the user can proceed with updating the production warehouse.
-2. Execute the `apply.py` script: `./apply.py --prod views/<name-of-view>.sql`
-3. The script will ask you to confirm that you will update production.
+2. Make sure your are within the virtualenv. 
+3. Execute the `apply.py` script: `./apply.py --prod views/<name-of-view>.sql`
+4. The script will ask you to confirm that you will update production.
+
+## Tableau
+
+- Tableau runs a daily update on the 2am Long Job schedule, which updates the views. Therefore you may have to wait until the next day to see the changes of running `./apply`.
+- To save (if not the original owner), use 'Save As' and enter the name of the report to overwrite.
+- You can use the 'Ask Data' to query the data in the report.
+- To edit the Filter or Search input in a Dashboard, update the 'Search' function in the left column of the View.
 
 ## Useful Links
-- [Sample tracking report](https://ssg-confluence.internal.sanger.ac.uk/display/PSDPUB/Sample+Tracking+Report)
-- [Tableau reporting](https://globalreporting.internal.sanger.ac.uk/views/SeqOpsSampleTracking/SampleTracking?:iid=1&:isGuestRedirectFromVizportal=y&:embed=y)
+- [Sample Tracking - Confluence ](https://ssg-confluence.internal.sanger.ac.uk/display/PSDPUB/Sample+Tracking+Report)
+- [Sample Tracking Tableau reports](https://globalreporting.internal.sanger.ac.uk/#/search/views?search=sample%20tracking)
+- [Sequencing Billing - Confluence](https://ssg-confluence.internal.sanger.ac.uk/display/PSDPUB/Automating+Billing+Report) 
+- [Sequencing Billing Tableau reports](https://globalreporting.internal.sanger.ac.uk/#/search/views?search=sequencing%20billing)
 
 ## Trouble Shooting
 Occasionally on mlwhd, when query the views, there is error saying 'Illegal mix of collations (utf8_unicode_ci,IMPLICIT) and (utf8_general_ci,IMPLICIT) for operation '=''.  This is because BIN_TO_UUID creates a string using the connection's charset/collation, so they have to be set appropriately for the tables they are joining onto. By running the following:
