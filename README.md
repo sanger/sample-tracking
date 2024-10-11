@@ -73,6 +73,7 @@ The names that these refer to can be seen inside the `env.ini` config file.
 - To save (if not the original owner), use 'Save As' and enter the name of the report to overwrite.
 - You can use the 'Ask Data' to query the data in the report.
 - To edit the Filter or Search input in a Dashboard, update the 'Search' function in the left column of the View.
+- To Download the full data from Tableau, go to the Dashboard, **click on any header** within the 'View' you would like to download the data for. Click 'Download' > 'Data' > 'Full Data' > 'Download all rows as a text file'. 
 
 ## Useful Links
 - [Sample Tracking - Confluence ](https://ssg-confluence.internal.sanger.ac.uk/display/PSDPUB/Sample+Tracking+Report)
