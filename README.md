@@ -75,20 +75,16 @@ The names that these refer to can be seen inside the `env.ini` config file.
 - To edit the Filter or Search input in a Dashboard, update the 'Search' function in the left column of the View.
 - To Download the full data from Tableau, go to the Dashboard, **click on any header** within the 'View' you would like to download the data for. Click 'Download' > 'Data' > 'Full Data' > 'Download all rows as a text file'. 
 
-## Tableau - Data Source permission error
-Laura F was having permission issues viewing the UAT Dashboard.
+### Data Source connection entities
 
-Matt F said "Its because the UAT data source has been published as its own object with its own permissions. Its been put in the DNA Pipeline project so only those in the DNA pipeline group can access it. The workbook is in the public area so that means someone can open the workbook, but then get denied access to the data. I’ve added her to the access list for the data source so it now should work."
-
-Looking into this more 
-- UAT Sample Tracking Data Source entity is in "DNA Pipelines" folder
-- Sample Tracking Report UAT Dashboard in is the "Public" folder.
-- Sample Tracking Report Prod is in the "Public" folder, but Prod does not have its own Data Source entity
-
-Some questions/ thoughts:
-- Should UAT and Production be the same? We could remove the extra UAT Data Source entity, and have UAT connect directly to the DB like Production does?
-- Or we move the UAT Data Source entity to the Public folder, to where the View/Dashboards are?
-- We do nothing, but for every new user testing in UAT, they have to be added by Matt F to the DNA pipeline group
+- Both MLWH UAT and Prod have a Data Source Connection Entity each
+- Both Data Source Connection Entities live in "DNA Pipelines" folder
+- Both Data Source Connection Entities have Admin permissions for DNA Pipelines group, and view/RO permission for ALL users
+- Both Data Source Connection Entities run at 2am, as an "Extract" refresh
+- UAT Sample Tracking Report points to "UAT Sample Tracking" Data Source connection entity
+- Prod Sample Tracking Report points to "PROD Sample Tracking" Data Source connection entity
+- Both UAT and Prod Reports live in the "Public" folder
+- Both UAT and Prod Reports have admin permission for DNA Pipelines group and view/RO permission for ALL users
 
 ## Useful Links
 - [Sample Tracking - Confluence ](https://ssg-confluence.internal.sanger.ac.uk/display/PSDPUB/Sample+Tracking+Report)
