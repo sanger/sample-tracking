@@ -4,7 +4,8 @@ CREATE TABLE seq_ops_tracking_per_sample (
 , id_sample_lims VARCHAR(255) NOT NULL
 , sanger_sample_id VARCHAR(255)
 , supplier_name VARCHAR(255)
-, study_name VARCHAR(255)
+, submitted_study_name VARCHAR(255)
+, sequenced_study_name TEXT
 
 , manifest_plate_barcode TEXT
 , study_id TEXT
@@ -29,6 +30,6 @@ CREATE TABLE seq_ops_tracking_per_sample (
 , INDEX ix_seq_ops_tracking_per_sample_id_sample_lims (id_sample_lims)
 , INDEX ix_seq_ops_tracking_per_sample_sanger_sample_id (sanger_sample_id)
 , INDEX ix_seq_ops_tracking_per_sample_supplier_name (supplier_name)
-, INDEX ix_seq_ops_tracking_per_sample_study_name (study_name)
+, INDEX ix_seq_ops_tracking_per_sample_submitted_study_name (submitted_study_name)
 ) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
 ;

@@ -14,7 +14,8 @@ DO BEGIN
     , id_sample_lims
     , sanger_sample_id
     , supplier_name
-    , study_name
+    , submitted_study_name
+    , sequenced_study_name
     , manifest_plate_barcode
     , study_id
     , programme
@@ -77,7 +78,7 @@ DO BEGIN
       UUID_TO_BIN(sample.uuid_sample_lims) AS sample_uuid_bin, -- convert to same uuid format used in events
       studies_of_interest.uuid AS uuid_study_lims,
       study.id_study_tmp,
-      study.name AS study_name,
+      study.name AS submitted_study_name,
       study.programme,
       study.faculty_sponsor,
       study.id_study_lims,
@@ -118,7 +119,8 @@ DO BEGIN
       samples_of_interest.supplier_name AS supplier_name,
       samples_of_interest.sample_uuid_bin AS sample_uuid_bin, -- convert to same uuid format used in events
       samples_of_interest.id_study_tmp,
-      samples_of_interest.study_name AS study_name,
+      samples_of_interest.submitted_study_name AS submitted_study_name,
+      study.name AS sequenced_study_name,
       samples_of_interest.programme,
       samples_of_interest.faculty_sponsor,
       samples_of_interest.id_study_lims,
@@ -138,6 +140,7 @@ DO BEGIN
     LEFT JOIN [warehouse].iseq_flowcell ON iseq_flowcell.id_sample_tmp = samples_of_interest.id_sample_tmp
     LEFT JOIN [warehouse].iseq_product_metrics ON iseq_product_metrics.id_iseq_flowcell_tmp = iseq_flowcell.id_iseq_flowcell_tmp
     LEFT JOIN [warehouse].iseq_run_lane_metrics ON iseq_run_lane_metrics.id_run = iseq_product_metrics.id_run
+    LEFT JOIN [warehouse].study ON iseq_flowcell.id_study_tmp = study.id_study_tmp
   )
   -- Desired report grouped by sample.
   -- Select the first timestamp for any mulitple timestamps for a given sample; concat any other fields
@@ -148,7 +151,8 @@ DO BEGIN
       sample_flowcell.id_sample_lims, -- assumed unique by grouping  on id_sample_lims_composite
       sample_flowcell.sanger_sample_id, -- assumed unique by grouping  on id_sample_lims_composite
       sample_flowcell.supplier_name, -- assumed unique by grouping  on id_sample_lims_composite
-      sample_flowcell.study_name, -- assumed unique by grouping  on id_sample_lims_composite
+      sample_flowcell.submitted_study_name, -- assumed unique by grouping  on id_sample_lims_composite
+      GROUP_CONCAT(DISTINCT sample_flowcell.sequenced_study_name SEPARATOR '; ') AS sequenced_study_name,
       GROUP_CONCAT(DISTINCT sample_flowcell.labware_human_barcode SEPARATOR '; ') AS manifest_plate_barcode,
       GROUP_CONCAT(DISTINCT sample_flowcell.id_study_lims SEPARATOR '; ') AS study_id,
       GROUP_CONCAT(DISTINCT sample_flowcell.programme SEPARATOR '; ') AS programme,
