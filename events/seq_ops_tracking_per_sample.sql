@@ -38,12 +38,16 @@ DO BEGIN
   WITH
   -- Query filtering for the events we are interested in in the given period
   sample_events AS (
-      SELECT wh_event_id, event_type, occured_at, subject_uuid_bin
+      SELECT wh_event_id, event_type, occured_at, subject_uuid_bin AS sample_uuid_bin
       FROM [events].flat_events_view
       WHERE role_type = 'sample'
         AND event_type IN ('sample_manifest.updated', 'labware.received', 'library_start', 'library_complete', 'sequencing_start', 'sequencing_complete', 'order_made')
         AND occured_at >= DATE_SUB(NOW(), INTERVAL 2 YEAR)
       GROUP BY wh_event_id, subject_uuid_bin
+  ),
+  -- Set of relevant sample uuids
+  distinct_sample_uuid_bin AS (
+      SELECT DISTINCT sample_uuid_bin FROM sample_events
   ),
   -- Query filtering for the earliest sample submissions we are interested in in the given period
   labware_manifest_created_event AS (
@@ -54,19 +58,6 @@ DO BEGIN
         AND occured_at >= DATE_SUB(NOW(), INTERVAL 2 YEAR)
       GROUP BY subject_friendly_name
   ),
-  -- Query of study ids that have had something happen in the time interval given
-  studies_of_interest AS (
-    SELECT BIN_TO_UUID(s.uuid) AS uuid
-    FROM [events].role_types rt
-      JOIN [events].roles r ON (r.role_type_id=rt.id)
-      JOIN [events].subjects s ON (r.subject_id=s.id)
-      JOIN [events].events e ON (r.event_id=e.id)
-      JOIN [events].event_types et ON (e.event_type_id=et.id)
-    WHERE rt.key='study'
-      AND et.key='sample_manifest.updated'
-      AND e.occured_at >= NOW() - INTERVAL 2 YEAR
-    GROUP BY s.id
-  ),
   -- Query of samples of interest from studies of interest
   samples_of_interest AS (
       SELECT
@@ -76,7 +67,7 @@ DO BEGIN
       sample.sanger_sample_id AS sanger_sample_id,
       sample.supplier_name AS supplier_name,
       UUID_TO_BIN(sample.uuid_sample_lims) AS sample_uuid_bin, -- convert to same uuid format used in events
-      studies_of_interest.uuid AS uuid_study_lims,
+      study.uuid_study_lims,
       study.id_study_tmp,
       study.name AS submitted_study_name,
       study.programme,
@@ -84,10 +75,10 @@ DO BEGIN
       study.id_study_lims,
       study.data_access_group,
       stock_resource.labware_human_barcode
-      FROM studies_of_interest
-      JOIN [warehouse].study ON study.uuid_study_lims = studies_of_interest.uuid
-      JOIN [warehouse].stock_resource ON stock_resource.id_study_tmp = study.id_study_tmp
-      JOIN [warehouse].sample ON sample.id_sample_tmp = stock_resource.id_sample_tmp
+      FROM distinct_sample_uuid_bin
+      JOIN [warehouse].sample ON UUID_TO_BIN(sample.uuid_sample_lims)=distinct_sample_uuid_bin.sample_uuid_bin
+      JOIN [warehouse].stock_resource ON sample.id_sample_tmp = stock_resource.id_sample_tmp
+      JOIN [warehouse].study ON stock_resource.id_study_tmp = study.id_study_tmp
   ),
   -- Query getting working dilution timestamps per sample
   dilution_timestamps AS (
@@ -174,7 +165,7 @@ DO BEGIN
 
   FROM sample_flowcell
   LEFT JOIN labware_manifest_created_event ON (labware_manifest_created_event.labware_human_barcode = sample_flowcell.labware_human_barcode)
-  LEFT JOIN sample_events ON (sample_events.subject_uuid_bin = sample_flowcell.sample_uuid_bin)
+  LEFT JOIN sample_events ON (sample_events.sample_uuid_bin = sample_flowcell.sample_uuid_bin)
   LEFT JOIN dilution_timestamps ON (dilution_timestamps.id_sample_tmp=sample_flowcell.id_sample_tmp)
   LEFT JOIN [events].metadata md ON (
               sample_events.event_type='sequencing_complete'
