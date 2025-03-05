@@ -159,7 +159,7 @@ def close_paren_index(string, start):
                 return i
     raise ValueError("Close paren not found")
 
-def read_files(filenames: list|None) -> list:
+def read_files(filenames: list|None) -> (list, list):
     if not filenames:
         filenames = glob.glob('*.sql')
     nonfiles = [fn for fn in filenames if not os.path.isfile(fn)]
@@ -171,7 +171,7 @@ def read_files(filenames: list|None) -> list:
     for fn in filenames:
         with open(fn) as f:
             contents.append(f.read())
-    return contents
+    return filenames, contents
 
 def confirm(prompt: str) -> bool:
     print(prompt)
@@ -219,6 +219,25 @@ def inline(viewdef, deps):
     body = body[:from_index] + re.sub(rf'\[[^][]+\]\.({subnames})', r'\1', body[from_index:])
     return ViewDef(viewdef.name, viewdef.header, subs, body)
 
+INSERT_ER = '''
+  INSERT INTO event_record (name, start_time) VALUES ('{}', CURRENT_TIMESTAMP);
+  SET @_er = LAST_INSERT_ID();
+'''
+
+UPDATE_ER = '''
+  UPDATE event_record SET end_time=CURRENT_TIMESTAMP WHERE id=@_er;
+'''
+
+def insert_er(filename, content):
+    i = content.find('\nDO BEGIN')
+    j = content.find('\nEND $$')
+    if not (0 < i < j):
+        return content
+    i = content.index('\n', i+8)
+    name, _ = os.path.splitext(os.path.basename(filename))
+    return (content[:i] + INSERT_ER.format(name) + content[i:j]
+            + UPDATE_ER + content[j:])
+
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__, usage=USAGE)
     env = parser.add_mutually_exclusive_group(required=True)
@@ -230,6 +249,8 @@ def parse_args():
         dest='env', help='select the local environment')
     parser.add_argument('--show', action='store_true',
         help='show the SQL without executing it')
+    parser.add_argument('--er', '-e', action='store_true',
+        help='add event_record lines in events')
     parser.add_argument('--export', '-x', action='store', metavar='FN',
         help='specify file to export data to')
     parser.add_argument('filenames', metavar='FILENAME', nargs='+',
@@ -254,7 +275,7 @@ def main():
     if env.group not in config:
         sys.exit(f'Environment not found in config: {env.group}')
     config = config[env.group]
-    contents = read_files(args.filenames)
+    filenames, contents = read_files(args.filenames)
     if args.inline:
         inlines = read_files(args.inline)
         inlines = [ViewDef.parse(v) for v in inlines]
@@ -264,6 +285,8 @@ def main():
             v = inline(v, inlines)
             new_contents.append(str(v))
         contents = new_contents
+    if args.er:
+        contents = [insert_er(fn, c) for (fn, c) in zip(filenames, contents)]
 
     contents = fix_content(contents, config)
 
