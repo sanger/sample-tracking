@@ -18,7 +18,7 @@ from getpass import getpass
 from enum import Enum
 from contextlib import closing
 
-USAGE = """%(prog)s [-h] (--uat | --prod | --local) [--show] [-x FN]
+USAGE = """%(prog)s [-h] (--uat | --prod | --local) [-s] [-e] [-d] [-x FN]
                 FILENAME ... [-i FN ...]"""
 
 EXPORT_ON = '''
@@ -236,6 +236,17 @@ def insert_er(filename, content):
     return (content[:i] + INSERT_ER.format(name) + content[i:j]
             + UPDATE_ER + content[j:])
 
+DELIM_1 = '\nDELIMITER $$'
+DELIM_1_DBV = '\n@delimiter $$;'
+DELIM_2 = '\nDELIMITER ;'
+DELIM_2_DBV = '\n@delimiter ;$$'
+
+def fix_dbvis(contents):
+    if DELIM_1 in contents:
+        contents = contents.replace(DELIM_1, DELIM_1_DBV)
+        contents = contents.replace(DELIM_2, DELIM_2_DBV)
+    return contents
+
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__, usage=USAGE)
     env = parser.add_mutually_exclusive_group(required=True)
@@ -245,10 +256,12 @@ def parse_args():
         const=Env.PROD, dest='env', help='select the production environment')
     env.add_argument('--local', action='store_const', const=Env.LOCAL,
         dest='env', help='select the local environment')
-    parser.add_argument('--show', action='store_true',
+    parser.add_argument('--show', '-s', action='store_true',
         help='show the SQL without executing it')
     parser.add_argument('--er', '-e', action='store_true',
         help='add event_record lines in events')
+    parser.add_argument('--dbvis', '-d', action='store_true',
+        help='replace delimiter statements with those for dbvis')
     parser.add_argument('--export', '-x', action='store', metavar='FN',
         help='specify file to export data to')
     parser.add_argument('filenames', metavar='FILENAME', nargs='+',
@@ -285,6 +298,8 @@ def main():
         contents = new_contents
     if args.er:
         contents = [insert_er(fn, c) for (fn, c) in zip(filenames, contents)]
+    if args.dbvis:
+        contents = [fix_dbvis(c) for c in contents]
 
     contents = fix_content(contents, config)
 
