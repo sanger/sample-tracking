@@ -11,9 +11,7 @@ import re
 import argparse
 import configparser
 import glob
-import argparse
 import mysql.connector
-import re
 
 from dataclasses import dataclass
 from getpass import getpass
