@@ -1,0 +1,6 @@
+CREATE TABLE event_record (
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY
+, name VARCHAR(64) NOT NULL
+, start_time TIMESTAMP
+, end_time TIMESTAMP
+);
