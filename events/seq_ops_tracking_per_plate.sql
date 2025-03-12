@@ -4,7 +4,7 @@ DELIMITER $$
 CREATE EVENT [reporting].seq_ops_tracking_per_plate_event
 ON SCHEDULE
   EVERY 1 DAY
-  STARTS (TIMESTAMP(CURRENT_DATE) + INTERVAL 1 DAY + INTERVAL 90 MINUTE) -- 1:30 AM
+  STARTS (TIMESTAMP(CURRENT_DATE) + INTERVAL 1 DAY + INTERVAL 60 MINUTE) -- 1:00 AM
 COMMENT 'Populates the seq_ops_tracking_per_plate table'
 DO BEGIN
   TRUNCATE TABLE [reporting].seq_ops_tracking_per_plate;
