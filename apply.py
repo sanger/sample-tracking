@@ -18,7 +18,7 @@ from getpass import getpass
 from enum import Enum
 from contextlib import closing
 
-USAGE = """%(prog)s [-h] (--uat | --prod | --local) [-s] [-e] [-d] [-x FN]
+USAGE = """%(prog)s [-h] (--uat | --prod | --local) [-s] [-d] [-x FN] [--now] [--alter]
                 FILENAME ... [-i FN ...]"""
 
 EXPORT_ON = '''
@@ -247,6 +247,44 @@ def fix_dbvis(contents):
         contents = contents.replace(DELIM_2, DELIM_2_DBV)
     return contents
 
+def wrap_event(content, dbvis=False, now=False, alter=False):
+    if not content.startswith('-- EVENT'):
+        return content
+    m = re.match(r'-- EVENT: OFFSET (\d+ \w+)\b', content)
+    if not m:
+        raise ValueError('Event config invalid')
+    offset = m.group(1)
+    m = re.search(r'\n-- TABLE: (\w+)\b', content)
+    if not m:
+        raise ValueError('Event config invalid')
+    table = m.group(1)
+    i = content.index('\n', m.end())+1
+    content = content[i:]
+    parts = []
+    parts.append('@delimiter $$;' if dbvis else 'DELIMITER $$')
+    event = table + ('_temp' if now else '_event')
+    create = ('ALTER' if alter else 'CREATE')
+    parts.append(f'{create} EVENT [reporting].{event}')
+    parts.append('ON SCHEDULE')
+    if now:
+        parts.append('  AT CURRENT_TIMESTAMP + INTERVAL 2 MINUTE')
+    else:
+        parts.append('  EVERY 1 DAY')
+        parts.append(f'  STARTS TIMESTAMP(CURRENT_DATE) + INTERVAL 1 DAY + INTERVAL {offset}')
+    parts.append(f"COMMENT 'Populates the {table} table'")
+    parts.append("DO BEGIN")
+    parts.append('  INSERT INTO event_record (name, start_time)')
+    parts.append(f"  VALUES ('{table}', CURRENT_TIMESTAMP)")
+    parts.append('  ;')
+    parts.append('  SET @_er = LAST_INSERT_ID();')
+    parts.append(f"  TRUNCATE TABLE [reporting].{table};")
+    parts.append('  '+content.strip().replace('\n', '\n  '))
+    parts.append('  UPDATE event_record SET end_time=CURRENT_TIMESTAMP WHERE id=@_er;')
+    parts.append('END $$')
+    parts.append('@delimiter ;$$' if dbvis else 'DELIMITER ;')
+    return '\n'.join(parts)
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__, usage=USAGE)
     env = parser.add_mutually_exclusive_group(required=True)
@@ -258,12 +296,14 @@ def parse_args():
         dest='env', help='select the local environment')
     parser.add_argument('--show', '-s', action='store_true',
         help='show the SQL without executing it')
-    parser.add_argument('--er', '-e', action='store_true',
-        help='add event_record lines in events')
     parser.add_argument('--dbvis', '-d', action='store_true',
         help='replace delimiter statements with those for dbvis')
     parser.add_argument('--export', '-x', action='store', metavar='FN',
         help='specify file to export data to')
+    parser.add_argument('--now', action='store_true',
+        help='create event to run once now instead of daily')
+    parser.add_argument('--alter', action='store_true',
+        help='alter event instead of creating it')
     parser.add_argument('filenames', metavar='FILENAME', nargs='+',
         help='specify SQL files')
     parser.add_argument('--inline', '-i', nargs='+', metavar='FN',
@@ -296,10 +336,7 @@ def main():
             v = inline(v, inlines)
             new_contents.append(str(v))
         contents = new_contents
-    if args.er:
-        contents = [insert_er(fn, c) for (fn, c) in zip(filenames, contents)]
-    if args.dbvis:
-        contents = [fix_dbvis(c) for c in contents]
+    contents = [wrap_event(c, args.dbvis, args.now, args.alter) for c in contents]
 
     contents = fix_content(contents, config)
 
