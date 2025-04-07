@@ -218,12 +218,12 @@ def inline(viewdef, deps):
     return ViewDef(viewdef.name, viewdef.header, subs, body)
 
 INSERT_ER = '''
-  INSERT INTO event_record (name, start_time) VALUES ('{}', CURRENT_TIMESTAMP);
-  SET @_er = LAST_INSERT_ID();
+  INSERT INTO event_record (name, start_time) VALUES ('{0}', CURRENT_TIMESTAMP);
+  SET @_er_{0} = LAST_INSERT_ID();
 '''
 
 UPDATE_ER = '''
-  UPDATE event_record SET end_time=CURRENT_TIMESTAMP WHERE id=@_er;
+  UPDATE event_record SET end_time=CURRENT_TIMESTAMP WHERE id=@_er_{0};
 '''
 
 def insert_er(filename, content):
@@ -271,15 +271,16 @@ def wrap_event(content, dbvis=False, now=False, alter=False):
     else:
         parts.append('  EVERY 1 DAY')
         parts.append(f'  STARTS TIMESTAMP(CURRENT_DATE) + INTERVAL 1 DAY + INTERVAL {offset}')
+    er_var = '@_er_' + table
     parts.append(f"COMMENT 'Populates the {table} table'")
     parts.append("DO BEGIN")
     parts.append('  INSERT INTO event_record (name, start_time)')
-    parts.append(f"  VALUES ('{table}', CURRENT_TIMESTAMP)")
+    parts.append(f"  VALUES ('{event}', CURRENT_TIMESTAMP)")
     parts.append('  ;')
-    parts.append('  SET @_er = LAST_INSERT_ID();')
+    parts.append(f'  SET {er_var} = LAST_INSERT_ID();')
     parts.append(f"  TRUNCATE TABLE [reporting].{table};")
     parts.append('  '+content.strip().replace('\n', '\n  '))
-    parts.append('  UPDATE event_record SET end_time=CURRENT_TIMESTAMP WHERE id=@_er;')
+    parts.append(f'  UPDATE event_record SET end_time=CURRENT_TIMESTAMP WHERE id={er_var};')
     parts.append('END $$')
     parts.append('@delimiter ;$$' if dbvis else 'DELIMITER ;')
     return '\n'.join(parts)
