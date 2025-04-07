@@ -1,5 +1,68 @@
--- EVENT: OFFSET 90 MINUTE
+-- EVENT: OFFSET 105 MINUTE
 -- TABLE: seq_ops_tracking_per_sample
+
+SET @_cutoff = DATE_SUB(NOW(), INTERVAL 2 YEAR);
+
+SET @_rt = (SELECT id FROM [events].role_types WHERE `key`='sample');
+SET @_et_mu = (SELECT id FROM [events].event_types WHERE `key`='sample_manifest.updated');
+SET @_et_lr = (SELECT id FROM [events].event_types WHERE `key`='labware.received');
+SET @_et_ls = (SELECT id FROM [events].event_types WHERE `key`='library_start');
+SET @_et_lc = (SELECT id FROM [events].event_types WHERE `key`='library_complete');
+SET @_et_ss = (SELECT id FROM [events].event_types WHERE `key`='sequencing_start');
+SET @_et_sc = (SELECT id FROM [events].event_types WHERE `key`='sequencing_complete');
+SET @_et_om = (SELECT id FROM [events].event_types WHERE `key`='order_made');
+
+SET @_lwrt = (SELECT id FROM [events].role_types WHERE `key`='labware');
+SET @_et_mc = (SELECT id FROM [events].event_types WHERE `key`='sample_manifest.created');
+
+TRUNCATE TABLE relevant_samples;
+
+INSERT INTO relevant_samples (subject_id)
+SELECT DISTINCT r.subject_id
+FROM [events].roles r
+  JOIN [events].events e ON (r.event_id = e.id)
+WHERE r.role_type_id = @_rt
+  AND e.event_type_id IN (@_et_mu, @_et_lr, @_et_ls, @_et_lc, @_et_ss, @_et_sc, @_et_om)
+  AND e.occured_at >= @_cutoff
+;
+
+UPDATE relevant_samples rs
+  JOIN [events].subjects s ON (rs.subject_id=s.id)
+SET rs.uuid = BIN_TO_UUID(s.uuid)
+;
+
+CREATE TEMPORARY TABLE _sample_events (
+  event_id INT NOT NULL
+, sample_id INT NOT NULL
+, PRIMARY KEY (event_id, sample_id)
+);
+
+INSERT INTO _sample_events
+SELECT DISTINCT r.event_id, r.subject_id
+FROM relevant_samples rs
+  JOIN [events].roles r on (r.subject_id=rs.subject_id)
+  JOIN [events].events e on (r.event_id=e.id)
+WHERE r.role_type_id = @_rt
+  AND e.event_type_id IN (@_et_mu, @_et_lr, @_et_ls, @_et_lc, @_et_ss, @_et_sc, @_et_om)
+  AND e.occured_at >= @_cutoff
+;
+
+CREATE TEMPORARY TABLE _labware_events (
+  event_id INT NOT NULL
+, subject_id INT NOT NULL
+, PRIMARY KEY (event_id, subject_id)
+);
+
+INSERT INTO _labware_events
+SELECT r.event_id, r.subject_id
+FROM [events].roles r
+  JOIN [events].events e on (r.event_id=e.id)
+WHERE r.role_type_id=@_lwrt
+  AND e.event_type_id=@_et_mc
+  AND e.occured_at >= @_cutoff
+;
+
+-- Main query
 
 INSERT INTO [reporting].seq_ops_tracking_per_sample (
   id_sample_lims_composite
@@ -29,27 +92,13 @@ INSERT INTO [reporting].seq_ops_tracking_per_sample (
   , sequencing_qc_complete
 )
 WITH
--- Query filtering for the events we are interested in in the given period
-sample_events AS (
-    SELECT wh_event_id, event_type, occured_at, subject_uuid_bin AS sample_uuid_bin
-    FROM [events].flat_events_view
-    WHERE role_type = 'sample'
-      AND event_type IN ('sample_manifest.updated', 'labware.received', 'library_start', 'library_complete', 'sequencing_start', 'sequencing_complete', 'order_made')
-      AND occured_at >= DATE_SUB(NOW(), INTERVAL 2 YEAR)
-    GROUP BY wh_event_id, subject_uuid_bin
-),
--- Set of relevant sample uuids
-distinct_sample_uuid_bin AS (
-    SELECT DISTINCT sample_uuid_bin FROM sample_events
-),
 -- Query filtering for the earliest sample submissions we are interested in in the given period
 labware_manifest_created_event AS (
-    SELECT subject_friendly_name AS labware_human_barcode, MIN(occured_at) AS occured_at
-    FROM [events].flat_events_view
-    WHERE role_type = 'labware'
-      AND event_type =  'sample_manifest.created'
-      AND occured_at >= DATE_SUB(NOW(), INTERVAL 2 YEAR)
-    GROUP BY subject_friendly_name
+    SELECT s.friendly_name AS labware_human_barcode, MIN(occured_at) AS occured_at
+    FROM _labware_events le
+    JOIN [events].subjects s ON (le.subject_id=s.id)
+      JOIN [events].events e ON (le.event_id=e.id)
+    GROUP BY le.subject_id
 ),
 -- Query of samples of interest from studies of interest
 samples_of_interest AS (
@@ -59,7 +108,7 @@ samples_of_interest AS (
     sample.id_sample_lims AS id_sample_lims,
     sample.sanger_sample_id AS sanger_sample_id,
     sample.supplier_name AS supplier_name,
-    UUID_TO_BIN(sample.uuid_sample_lims) AS sample_uuid_bin, -- convert to same uuid format used in events
+    sample.uuid_sample_lims,
     study.uuid_study_lims,
     study.id_study_tmp,
     study.name AS submitted_study_name,
@@ -68,8 +117,8 @@ samples_of_interest AS (
     study.id_study_lims,
     study.data_access_group,
     stock_resource.labware_human_barcode
-    FROM distinct_sample_uuid_bin
-    JOIN [warehouse].sample ON UUID_TO_BIN(sample.uuid_sample_lims)=distinct_sample_uuid_bin.sample_uuid_bin
+    FROM relevant_samples
+    JOIN [warehouse].sample ON sample.uuid_sample_lims=relevant_samples.uuid
     JOIN [warehouse].stock_resource ON sample.id_sample_tmp = stock_resource.id_sample_tmp
     JOIN [warehouse].study ON stock_resource.id_study_tmp = study.id_study_tmp
 ),
@@ -90,7 +139,7 @@ dilution_timestamps AS (
     -- allow pipelines where no QC result is measured OR where it is measured recently
     qc_result.id_qc_result_tmp IS NULL
     OR
-    qc_result.recorded_at >= NOW() - INTERVAL 2 YEAR
+    qc_result.recorded_at >=  @_cutoff
 ),
 -- Query linking samples to qc results and flowcell/run information.
 -- This will have multiple rows per sequencing attempt
@@ -101,7 +150,8 @@ sample_flowcell AS (
     samples_of_interest.id_sample_lims AS id_sample_lims,
     samples_of_interest.sanger_sample_id AS sanger_sample_id,
     samples_of_interest.supplier_name AS supplier_name,
-    samples_of_interest.sample_uuid_bin AS sample_uuid_bin, -- convert to same uuid format used in events
+    samples_of_interest.uuid_study_lims,
+    samples_of_interest.uuid_sample_lims,
     samples_of_interest.id_study_tmp,
     samples_of_interest.submitted_study_name AS submitted_study_name,
     study.name AS sequenced_study_name,
@@ -147,24 +197,28 @@ SELECT
     GROUP_CONCAT(DISTINCT sample_flowcell.sequencing_cost_code SEPARATOR '; ') AS sequencing_cost_code,
     GROUP_CONCAT(DISTINCT sample_flowcell.instrument_model SEPARATOR '; ') AS platform,
     MIN(labware_manifest_created_event.occured_at) AS manifest_created,
-    MIN(IF(sample_events.event_type = 'sample_manifest.updated', sample_events.occured_at, NULL)) AS manifest_uploaded,
-    MIN(IF(sample_events.event_type = 'labware.received', sample_events.occured_at, NULL)) AS labware_received,
-    MIN(IF(sample_events.event_type = 'order_made', sample_events.occured_at, NULL)) order_made,
+    MIN(IF(eve.event_type_id = @_et_mu, eve.occured_at, NULL)) AS manifest_uploaded,
+    MIN(IF(eve.event_type_id = @_et_lr, eve.occured_at, NULL)) AS labware_received,
+    MIN(IF(eve.event_type_id = @_et_om, eve.occured_at, NULL)) order_made,
     MIN(dilution_timestamps.qc_early) working_dilution,
-    MIN(IF(sample_events.event_type = 'library_start', sample_events.occured_at, NULL)) library_start,
-    MIN(IF(sample_events.event_type = 'library_complete', sample_events.occured_at, NULL)) library_complete,
-    MIN(IF(sample_events.event_type = 'sequencing_start', sample_events.occured_at, NULL)) sequencing_run_start,
-    MIN(IF(sample_events.event_type = 'sequencing_complete', sample_events.occured_at, NULL)) sequencing_qc_complete
+    MIN(IF(eve.event_type_id = @_et_ls, eve.occured_at, NULL)) library_start,
+    MIN(IF(eve.event_type_id = @_et_lc, eve.occured_at, NULL)) library_complete,
+    MIN(IF(eve.event_type_id = @_et_ss, eve.occured_at, NULL)) sequencing_run_start,
+    MIN(IF(eve.event_type_id = @_et_sc, eve.occured_at, NULL)) sequencing_qc_complete
 
 FROM sample_flowcell
 LEFT JOIN labware_manifest_created_event ON (labware_manifest_created_event.labware_human_barcode = sample_flowcell.labware_human_barcode)
-LEFT JOIN sample_events ON (sample_events.sample_uuid_bin = sample_flowcell.sample_uuid_bin)
-LEFT JOIN dilution_timestamps ON (dilution_timestamps.id_sample_tmp=sample_flowcell.id_sample_tmp)
-LEFT JOIN [events].metadata md ON (
-            sample_events.event_type='sequencing_complete'
-            AND sample_events.wh_event_id=md.event_id
+LEFT JOIN relevant_samples ru ON (ru.uuid=sample_flowcell.uuid_sample_lims)
+LEFT JOIN 
+  (_sample_events se JOIN [events].subjects sub ON (se.sample_id=sub.id)
+    JOIN [events].events eve ON (se.event_id=eve.id)
+    LEFT JOIN [events].metadata md ON (
+        eve.event_type_id=@_et_sc
+            AND eve.id=md.event_id
             AND md.key='result'
-        )
+    )
+  ) ON (sub.uuid = sample_flowcell.uuid_sample_lims)
+LEFT JOIN dilution_timestamps ON (dilution_timestamps.id_sample_tmp=sample_flowcell.id_sample_tmp)
 
 -- We can speed up query by restricting to a given programme.
 -- With the filter it takes about 3 mins.
@@ -173,3 +227,6 @@ LEFT JOIN [events].metadata md ON (
 GROUP BY id_sample_lims_composite
 ORDER BY id_sample_lims_composite
 ;
+
+DROP TEMPORARY TABLE _sample_events;
+DROP TEMPORARY TABLE _labware_events;
