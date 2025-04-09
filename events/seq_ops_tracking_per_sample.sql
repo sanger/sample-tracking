@@ -31,20 +31,30 @@ UPDATE relevant_samples rs
 SET rs.uuid = BIN_TO_UUID(s.uuid)
 ;
 
-CREATE TEMPORARY TABLE _sample_events (
-  event_id INT NOT NULL
-, sample_id INT NOT NULL
-, PRIMARY KEY (event_id, sample_id)
+CREATE TEMPORARY TABLE _sample_event_ids (
+  event_id INT NOT NULL PRIMARY KEY
 );
 
-INSERT INTO _sample_events
-SELECT DISTINCT r.event_id, r.subject_id
-FROM relevant_samples rs
-  JOIN [events].roles r on (r.subject_id=rs.subject_id)
-  JOIN [events].events e on (r.event_id=e.id)
-WHERE r.role_type_id = @_rt
-  AND e.event_type_id IN (@_et_mu, @_et_lr, @_et_ls, @_et_lc, @_et_ss, @_et_sc, @_et_om)
+INSERT INTO _sample_event_ids
+SELECT e.id
+FROM
+   [events].events e
+WHERE e.event_type_id IN (@_et_mu, @_et_lr, @_et_ls, @_et_lc, @_et_ss, @_et_sc, @_et_om)
   AND e.occured_at >= @_cutoff
+;
+
+CREATE TEMPORARY TABLE _sample_events (
+  event_id INT NOT NULL
+, subject_id INT NOT NULL
+, PRIMARY KEY (event_id, subject_id)
+);
+
+INSERT INTO _sample_events (event_id, subject_id)
+SELECT DISTINCT se.event_id, rs.subject_id
+FROM _sample_event_ids se
+  JOIN [events].roles r on (r.event_id=se.event_id)
+  JOIN relevant_samples rs on (r.subject_id=rs.subject_id)
+WHERE r.role_type_id=@_rt
 ;
 
 CREATE TEMPORARY TABLE _labware_events (
@@ -210,7 +220,7 @@ FROM sample_flowcell
 LEFT JOIN labware_manifest_created_event ON (labware_manifest_created_event.labware_human_barcode = sample_flowcell.labware_human_barcode)
 LEFT JOIN relevant_samples ru ON (ru.uuid=sample_flowcell.uuid_sample_lims)
 LEFT JOIN 
-  (_sample_events se JOIN [events].subjects sub ON (se.sample_id=sub.id)
+  (_sample_events se JOIN [events].subjects sub ON (se.subject_id=sub.id)
     JOIN [events].events eve ON (se.event_id=eve.id)
     LEFT JOIN [events].metadata md ON (
         eve.event_type_id=@_et_sc
@@ -228,5 +238,6 @@ GROUP BY id_sample_lims_composite
 ORDER BY id_sample_lims_composite
 ;
 
+DROP TEMPORARY TABLE _sample_event_ids;
 DROP TEMPORARY TABLE _sample_events;
 DROP TEMPORARY TABLE _labware_events;
