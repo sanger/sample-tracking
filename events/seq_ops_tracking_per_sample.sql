@@ -66,10 +66,48 @@ CREATE TEMPORARY TABLE _labware_events (
 INSERT INTO _labware_events
 SELECT r.event_id, r.subject_id
 FROM [events].roles r
-  JOIN [events].events e on (r.event_id=e.id)
+  JOIN [events].events e ON (r.event_id=e.id)
 WHERE r.role_type_id=@_lwrt
   AND e.event_type_id=@_et_mc
   AND e.occured_at >= @_cutoff
+;
+
+CREATE TEMPORARY TABLE _event_min (
+  subject_id INT NOT NULL
+, event_type_id INT NOT NULL
+, occured_at DATETIME NOT NULL
+, PRIMARY KEY (subject_id, event_type_id)
+);
+
+INSERT INTO _event_min
+SELECT se.subject_id, e.event_type_id, MIN(e.occured_at)
+FROM _sample_events se
+  JOIN [events].events e ON (se.event_id=e.id)
+GROUP BY se.subject_id, e.event_type_id
+;
+
+CREATE TEMPORARY TABLE _specific_event_min (
+  subject_id INT NOT NULL PRIMARY KEY
+, manifest_uploaded DATETIME NULL
+, labware_received DATETIME NULL
+, order_made DATETIME NULL
+, library_start DATETIME NULL
+, library_complete DATETIME NULL
+, sequencing_run_start DATETIME NULL
+, sequencing_qc_complete DATETIME NULL
+);
+
+INSERT INTO _specific_event_min
+SELECT subject_id
+, MIN(IF(event_type_id = @_et_mu, occured_at, NULL))
+, MIN(IF(event_type_id = @_et_lr, occured_at, NULL))
+, MIN(IF(event_type_id = @_et_om, occured_at, NULL))
+, MIN(IF(event_type_id = @_et_ls, occured_at, NULL))
+, MIN(IF(event_type_id = @_et_lc, occured_at, NULL))
+, MIN(IF(event_type_id = @_et_ss, occured_at, NULL))
+, MIN(IF(event_type_id = @_et_sc, occured_at, NULL))
+FROM _event_min
+GROUP BY subject_id
 ;
 
 -- Main query
@@ -185,7 +223,7 @@ sample_flowcell AS (
   LEFT JOIN [warehouse].iseq_product_metrics ON iseq_product_metrics.id_iseq_flowcell_tmp = iseq_flowcell.id_iseq_flowcell_tmp
   LEFT JOIN [warehouse].iseq_run_lane_metrics ON iseq_run_lane_metrics.id_run = iseq_product_metrics.id_run
   LEFT JOIN [warehouse].study ON iseq_flowcell.id_study_tmp = study.id_study_tmp
-)
+),
 -- Desired report grouped by sample.
 -- Select the first timestamp for any mulitple timestamps for a given sample; concat any other fields
 SELECT
@@ -207,27 +245,19 @@ SELECT
     GROUP_CONCAT(DISTINCT sample_flowcell.sequencing_cost_code SEPARATOR '; ') AS sequencing_cost_code,
     GROUP_CONCAT(DISTINCT sample_flowcell.instrument_model SEPARATOR '; ') AS platform,
     MIN(labware_manifest_created_event.occured_at) AS manifest_created,
-    MIN(IF(eve.event_type_id = @_et_mu, eve.occured_at, NULL)) AS manifest_uploaded,
-    MIN(IF(eve.event_type_id = @_et_lr, eve.occured_at, NULL)) AS labware_received,
-    MIN(IF(eve.event_type_id = @_et_om, eve.occured_at, NULL)) order_made,
+    em.manifest_uploaded,
+    em.labware_received,
+    em.order_made,
     MIN(dilution_timestamps.qc_early) working_dilution,
-    MIN(IF(eve.event_type_id = @_et_ls, eve.occured_at, NULL)) library_start,
-    MIN(IF(eve.event_type_id = @_et_lc, eve.occured_at, NULL)) library_complete,
-    MIN(IF(eve.event_type_id = @_et_ss, eve.occured_at, NULL)) sequencing_run_start,
-    MIN(IF(eve.event_type_id = @_et_sc, eve.occured_at, NULL)) sequencing_qc_complete
+    em.library_start,
+    em.library_complete,
+    em.sequencing_run_start,
+    em.sequencing_qc_complete
 
 FROM sample_flowcell
 LEFT JOIN labware_manifest_created_event ON (labware_manifest_created_event.labware_human_barcode = sample_flowcell.labware_human_barcode)
 LEFT JOIN relevant_samples ru ON (ru.uuid=sample_flowcell.uuid_sample_lims)
-LEFT JOIN 
-  (_sample_events se JOIN [events].subjects sub ON (se.subject_id=sub.id)
-    JOIN [events].events eve ON (se.event_id=eve.id)
-    LEFT JOIN [events].metadata md ON (
-        eve.event_type_id=@_et_sc
-            AND eve.id=md.event_id
-            AND md.key='result'
-    )
-  ) ON (sub.uuid = sample_flowcell.uuid_sample_lims)
+LEFT JOIN _specific_event_min em ON (ru.subject_id=em.subject_id)
 LEFT JOIN dilution_timestamps ON (dilution_timestamps.id_sample_tmp=sample_flowcell.id_sample_tmp)
 
 -- We can speed up query by restricting to a given programme.
@@ -238,6 +268,8 @@ GROUP BY id_sample_lims_composite
 ORDER BY id_sample_lims_composite
 ;
 
+DROP TEMPORARY TABLE _event_min;
+DROP TEMPORARY TABLE _specific_event_min;
 DROP TEMPORARY TABLE _sample_event_ids;
 DROP TEMPORARY TABLE _sample_events;
 DROP TEMPORARY TABLE _labware_events;
