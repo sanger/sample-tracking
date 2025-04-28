@@ -223,7 +223,7 @@ sample_flowcell AS (
   LEFT JOIN [warehouse].iseq_product_metrics ON iseq_product_metrics.id_iseq_flowcell_tmp = iseq_flowcell.id_iseq_flowcell_tmp
   LEFT JOIN [warehouse].iseq_run_lane_metrics ON iseq_run_lane_metrics.id_run = iseq_product_metrics.id_run
   LEFT JOIN [warehouse].study ON iseq_flowcell.id_study_tmp = study.id_study_tmp
-),
+)
 -- Desired report grouped by sample.
 -- Select the first timestamp for any mulitple timestamps for a given sample; concat any other fields
 SELECT
