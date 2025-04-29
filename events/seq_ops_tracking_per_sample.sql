@@ -173,21 +173,17 @@ samples_of_interest AS (
 -- Query getting working dilution timestamps per sample
 dilution_timestamps AS (
     SELECT
-    samples_of_interest.id_sample_tmp,
-    -- QC working dilution timestamps earliest and latest
-    MIN(qc_result.recorded_at) qc_early,
-    MAX(qc_result.recorded_at) qc_late
+      samples_of_interest.id_sample_tmp,
+      MIN(qc_result.recorded_at) AS qc_early
     FROM samples_of_interest
     LEFT JOIN [warehouse].qc_result ON (
-                    qc_result.id_sample_tmp = samples_of_interest.id_sample_tmp
-                    AND qc_result.assay = 'Working Dilution - Plate Reader v1.0'
+      qc_result.id_sample_tmp = samples_of_interest.id_sample_tmp
+      AND qc_result.assay = 'Working Dilution - Plate Reader v1.0'
     )
-
-    WHERE
     -- allow pipelines where no QC result is measured OR where it is measured recently
-    qc_result.id_qc_result_tmp IS NULL
-    OR
-    qc_result.recorded_at >=  @_cutoff
+    WHERE qc_result.id_qc_result_tmp IS NULL
+      OR qc_result.recorded_at >=  @_cutoff
+    GROUP BY samples_of_interest.id_sample_tmp
 ),
 -- Query linking samples to qc results and flowcell/run information.
 -- This will have multiple rows per sequencing attempt
