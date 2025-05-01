@@ -8,8 +8,10 @@ CREATE TABLE seq_ops_tracking_per_plate (
 , manifest_uploaded DATETIME
 , manifest_plate_barcode VARCHAR(255) NOT NULL PRIMARY KEY
 
+, library_type_ordered TEXT
 , library_type TEXT
 , bait_names TEXT
+, project_name TEXT
 , sequencing_cost_code TEXT
 , platform TEXT
 , labware_received DATETIME

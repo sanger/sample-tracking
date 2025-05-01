@@ -1,6 +1,48 @@
 -- EVENT: OFFSET 60 MINUTE
 -- TABLE: seq_ops_tracking_per_plate
 
+SET @_cutoff = DATE_SUB(NOW(), INTERVAL 2 YEAR);
+SET @_rt_sample = (SELECT id FROM [events].role_types WHERE `key`='sample');
+SET @_rt_project = (SELECT id FROM [events].role_types WHERE `key`='project');
+SET @_et_order_made = (SELECT id FROM [events].event_types WHERE `key`='order_made');
+
+CREATE TEMPORARY TABLE _order_made (
+  event_id INT NOT NULL PRIMARY KEY
+, project_subject_id INT NULL
+, library_type VARCHAR(255) NULL
+, INDEX ix_order_made_project (project_subject_id)
+);
+
+INSERT INTO _order_made (event_id)
+SELECT e.id
+FROM [events].events e
+WHERE e.event_type_id=@_et_order_made
+  AND e.occured_at >= @_cutoff
+;
+
+UPDATE _order_made om
+  JOIN [events].roles r ON (r.event_id=om.event_id AND r.role_type_id=@_rt_project)
+SET om.project_subject_id = r.subject_id
+;
+
+UPDATE _order_made om
+  JOIN [events].metadata md ON (md.event_id=om.event_id AND md.`key`='library_type')
+SET om.library_type = md.value
+WHERE md.value IS NOT NULL
+;
+
+CREATE TEMPORARY TABLE _sample_order_made (
+  subject_id INT NOT NULL
+, event_id INT NOT NULL
+, PRIMARY KEY (subject_id, event_id)
+);
+
+INSERT INTO _sample_order_made
+SELECT DISTINCT r.subject_id, om.event_id
+FROM _order_made om
+  JOIN [events].roles r ON (om.event_id=r.event_id AND r.role_type_id=@_rt_sample)
+;
+
 INSERT INTO [reporting].seq_ops_tracking_per_plate (
   study_name
 , study_id
@@ -10,8 +52,10 @@ INSERT INTO [reporting].seq_ops_tracking_per_plate (
 , manifest_created
 , manifest_uploaded
 , manifest_plate_barcode
+, library_type_ordered
 , library_type
 , bait_names
+, project_name
 , sequencing_cost_code
 , platform
 , labware_received
@@ -62,8 +106,10 @@ SELECT
     labware_manifest_created_event.occured_at AS manifest_created,
     MIN(IF(sample_events.event_type = 'sample_manifest.updated', sample_events.occured_at, NULL)) manifest_uploaded,
     sample_flowcell_view.labware_human_barcode manifest_plate_barcode,
+    GROUP_CONCAT(DISTINCT om.library_type SEPARATOR '; ') AS library_type_ordered,
     GROUP_CONCAT(DISTINCT sample_flowcell_view.pipeline_id_lims SEPARATOR '; ') AS library_type,
     GROUP_CONCAT(DISTINCT sample_flowcell_view.bait_name SEPARATOR '; ') AS bait_names,
+    GROUP_CONCAT(DISTINCT project_subject.friendly_name SEPARATOR '; ') AS project_name,
     GROUP_CONCAT(DISTINCT sample_flowcell_view.sequencing_cost_code SEPARATOR '; ') AS sequencing_cost_code,
     GROUP_CONCAT(DISTINCT sample_flowcell_view.instrument_model SEPARATOR '; ') AS platform,
     MIN(IF(sample_events.event_type = 'labware.received', sample_events.occured_at, NULL)) labware_received,
@@ -98,6 +144,10 @@ FROM [reporting].sample_flowcell_view
         AND sample_events.wh_event_id=md.event_id
         AND md.key='result'
     )
+    LEFT JOIN [events].subjects sample_subject ON (sample_flowcell_view.sample_uuid=sample_subject.uuid)
+    LEFT JOIN _sample_order_made som ON (som.subject_id=sample_subject.id)
+    LEFT JOIN _order_made om ON (som.event_id=om.event_id)
+    LEFT JOIN [events].subjects project_subject ON (om.project_subject_id=project_subject.id)
 
 GROUP BY manifest_plate_barcode
 -- filter out plates where we have no real information, but leave in rows where there is something for future debugging / smoke testing
@@ -108,3 +158,6 @@ HAVING manifest_uploaded IS NOT NULL
     OR sequencing_run_start_samples != 0
     OR sequencing_qc_complete_last IS NOT NULL
 ;
+
+DROP TEMPORARY TABLE _order_made;
+DROP TEMPORARY TABLE _sample_order_made;
