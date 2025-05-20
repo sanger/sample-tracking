@@ -3,7 +3,9 @@
 
 SET @_cutoff = DATE_SUB(NOW(), INTERVAL 2 YEAR);
 
-SET @_rt = (SELECT id FROM [events].role_types WHERE `key`='sample');
+SET @_rt_sample = (SELECT id FROM [events].role_types WHERE `key`='sample');
+SET @_rt_project = (SELECT id FROM [events].role_types WHERE `key`='project');
+
 SET @_et_mu = (SELECT id FROM [events].event_types WHERE `key`='sample_manifest.updated');
 SET @_et_lr = (SELECT id FROM [events].event_types WHERE `key`='labware.received');
 SET @_et_ls = (SELECT id FROM [events].event_types WHERE `key`='library_start');
@@ -21,7 +23,7 @@ INSERT INTO relevant_samples (subject_id)
 SELECT DISTINCT r.subject_id
 FROM [events].roles r
   JOIN [events].events e ON (r.event_id = e.id)
-WHERE r.role_type_id = @_rt
+WHERE r.role_type_id = @_rt_sample
   AND e.event_type_id IN (@_et_mu, @_et_lr, @_et_ls, @_et_lc, @_et_ss, @_et_sc, @_et_om)
   AND e.occured_at >= @_cutoff
 ;
@@ -54,7 +56,7 @@ SELECT DISTINCT se.event_id, rs.subject_id
 FROM _sample_event_ids se
   JOIN [events].roles r on (r.event_id=se.event_id)
   JOIN relevant_samples rs on (r.subject_id=rs.subject_id)
-WHERE r.role_type_id=@_rt
+WHERE r.role_type_id=@_rt_sample
 ;
 
 CREATE TEMPORARY TABLE _labware_events (
@@ -110,6 +112,43 @@ FROM _event_min
 GROUP BY subject_id
 ;
 
+CREATE TEMPORARY TABLE _order_made (
+  event_id INT NOT NULL PRIMARY KEY
+, project_subject_id INT NULL
+, library_type VARCHAR(255) NULL
+, INDEX ix_order_made_project (project_subject_id)
+);
+
+INSERT INTO _order_made (event_id)
+SELECT DISTINCT se.event_id
+FROM _sample_events se
+  JOIN [events].events e ON (se.event_id=e.id)
+WHERE e.event_type_id=@_et_om
+;
+
+UPDATE _order_made om
+  JOIN [events].roles r ON (r.event_id=om.event_id AND r.role_type_id=@_rt_project)
+SET om.project_subject_id = r.subject_id
+;
+
+UPDATE _order_made om
+  JOIN [events].metadata md ON (md.event_id=om.event_id AND md.`key`='library_type')
+SET om.library_type = md.value
+WHERE md.value IS NOT NULL
+;
+
+CREATE TEMPORARY TABLE _sample_order_made (
+  subject_id INT NOT NULL
+, event_id INT NOT NULL
+, PRIMARY KEY (subject_id, event_id)
+);
+
+INSERT INTO _sample_order_made
+SELECT DISTINCT r.subject_id, om.event_id
+FROM _order_made om
+  JOIN [events].roles r ON (om.event_id=r.event_id AND r.role_type_id=@_rt_sample)
+;
+
 -- Main query
 
 INSERT INTO [reporting].seq_ops_tracking_per_sample (
@@ -125,8 +164,10 @@ INSERT INTO [reporting].seq_ops_tracking_per_sample (
   , programme
   , faculty_sponsor
   , data_access_group
+  , library_type_ordered
   , library_type
   , bait_names
+  , project_name
   , sequencing_cost_code
   , platform
   , manifest_created
@@ -236,8 +277,10 @@ SELECT
     GROUP_CONCAT(DISTINCT sample_flowcell.programme SEPARATOR '; ') AS programme,
     GROUP_CONCAT(DISTINCT sample_flowcell.faculty_sponsor SEPARATOR '; ') AS faculty_sponsor,
     GROUP_CONCAT(DISTINCT sample_flowcell.data_access_group SEPARATOR '; ') AS data_access_group,
+    GROUP_CONCAT(DISTINCT om.library_type SEPARATOR '; ') AS library_type_ordered,
     GROUP_CONCAT(DISTINCT sample_flowcell.pipeline_id_lims SEPARATOR '; ') AS library_type,
     GROUP_CONCAT(DISTINCT sample_flowcell.bait_name SEPARATOR '; ') AS bait_names,
+    GROUP_CONCAT(DISTINCT project_subject.friendly_name SEPARATOR '; ') AS project_name,
     GROUP_CONCAT(DISTINCT sample_flowcell.sequencing_cost_code SEPARATOR '; ') AS sequencing_cost_code,
     GROUP_CONCAT(DISTINCT sample_flowcell.instrument_model SEPARATOR '; ') AS platform,
     MIN(labware_manifest_created_event.occured_at) AS manifest_created,
@@ -255,6 +298,9 @@ LEFT JOIN labware_manifest_created_event ON (labware_manifest_created_event.labw
 LEFT JOIN relevant_samples ru ON (ru.uuid=sample_flowcell.uuid_sample_lims)
 LEFT JOIN _specific_event_min em ON (ru.subject_id=em.subject_id)
 LEFT JOIN dilution_timestamps ON (dilution_timestamps.id_sample_tmp=sample_flowcell.id_sample_tmp)
+LEFT JOIN _sample_order_made som ON (ru.subject_id=som.subject_id)
+LEFT JOIN _order_made om ON (som.event_id=om.event_id)
+LEFT JOIN [events].subjects project_subject ON (om.project_subject_id=project_subject.id)
 
 -- We can speed up query by restricting to a given programme.
 -- With the filter it takes about 3 mins.
@@ -269,3 +315,5 @@ DROP TEMPORARY TABLE _specific_event_min;
 DROP TEMPORARY TABLE _sample_event_ids;
 DROP TEMPORARY TABLE _sample_events;
 DROP TEMPORARY TABLE _labware_events;
+DROP TEMPORARY TABLE _order_made;
+DROP TEMPORARY TABLE _sample_order_made;

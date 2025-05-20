@@ -12,8 +12,10 @@ CREATE TABLE seq_ops_tracking_per_sample (
 , programme TEXT
 , faculty_sponsor TEXT
 , data_access_group TEXT
+, library_type_ordered TEXT
 , library_type TEXT
 , bait_names TEXT
+, project_name TEXT
 , sequencing_cost_code TEXT
 , platform TEXT
 
