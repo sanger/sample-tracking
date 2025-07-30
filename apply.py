@@ -293,8 +293,8 @@ def parse_args():
         const=Env.UAT, dest='env', help='select the UAT environment')
     env.add_argument('--prod', '--production', action='store_const',
         const=Env.PROD, dest='env', help='select the production environment')
-    env.add_argument('--local', action='store_const', const=Env.LOCAL,
-        dest='env', help='select the local environment')
+    env.add_argument('--local', action='store_const',
+        const=Env.LOCAL, dest='env', help='select the local environment')
     parser.add_argument('--show', '-s', action='store_true',
         help='show the SQL without executing it')
     parser.add_argument('--dbvis', '-d', action='store_true',
