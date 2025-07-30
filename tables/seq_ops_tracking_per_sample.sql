@@ -3,6 +3,7 @@ CREATE TABLE seq_ops_tracking_per_sample (
 , id_lims VARCHAR(10) NOT NULL
 , id_sample_lims VARCHAR(255) NOT NULL
 , sanger_sample_id VARCHAR(255)
+, sanger_sample_name VARCHAR(255)
 , supplier_name VARCHAR(255)
 , submitted_study_name VARCHAR(255)
 , sequenced_study_name TEXT

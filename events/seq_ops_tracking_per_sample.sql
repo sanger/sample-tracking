@@ -156,6 +156,7 @@ INSERT INTO [reporting].seq_ops_tracking_per_sample (
   , id_lims
   , id_sample_lims
   , sanger_sample_id
+  , sanger_sample_name
   , supplier_name
   , submitted_study_name
   , sequenced_study_name
@@ -198,6 +199,7 @@ samples_of_interest AS (
     sample.sanger_sample_id AS sanger_sample_id,
     sample.supplier_name AS supplier_name,
     sample.uuid_sample_lims,
+    sample.name,
     study.uuid_study_lims,
     study.id_study_tmp,
     study.name AS submitted_study_name,
@@ -245,6 +247,7 @@ sample_flowcell AS (
     samples_of_interest.id_study_lims,
     samples_of_interest.data_access_group,
     samples_of_interest.labware_human_barcode,
+    samples_of_interest.name AS sanger_sample_name,
     iseq_flowcell.id_iseq_flowcell_tmp,
     iseq_product_metrics.id_iseq_product,
     iseq_product_metrics.id_run,
@@ -269,6 +272,7 @@ SELECT
     sample_flowcell.id_lims, -- assumed unique by grouping  on id_sample_lims_composite
     sample_flowcell.id_sample_lims, -- assumed unique by grouping  on id_sample_lims_composite
     sample_flowcell.sanger_sample_id, -- assumed unique by grouping  on id_sample_lims_composite
+    sample_flowcell.sanger_sample_name,
     sample_flowcell.supplier_name, -- assumed unique by grouping  on id_sample_lims_composite
     sample_flowcell.submitted_study_name, -- assumed unique by grouping  on id_sample_lims_composite
     GROUP_CONCAT(DISTINCT sample_flowcell.sequenced_study_name SEPARATOR '; ') AS sequenced_study_name,
