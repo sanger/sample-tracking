@@ -122,7 +122,7 @@ FROM
                     ON iseq_flowcell.id_study_tmp = study.id_study_tmp
                 WHERE
                     -- Controls are excluded, see Confluence documentation
-                    study.name NOT IN ('Heron PhiX', 'Illumina Controls')
+                    study.name NOT IN ('Heron PhiX', 'Illumina Controls', 'Comp PhiX')
             ) AS samples
         GROUP BY
             samples.lane_id
@@ -130,7 +130,7 @@ FROM
     ON lanes.lane_id = iseq_flowcell.entity_id_lims
 WHERE
     -- Controls are excluded, see Confluence documentation
-    study.name NOT IN ('Heron PhiX', 'Illumina Controls')
+    study.name NOT IN ('Heron PhiX', 'Illumina Controls', 'Comp PhiX')
 GROUP BY
     study.id_study_lims,
     iseq_flowcell.cost_code,
