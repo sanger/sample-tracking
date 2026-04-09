@@ -35,8 +35,15 @@ CREATE OR REPLACE VIEW [reporting].billing_report_view_v2 AS
             , lm.instrument_model AS platform
             , IF(lm.instrument_model = 'MiSeq', SUBSTRING_INDEX(SUBSTRING_INDEX(lm.flowcell_barcode, '-', 2), '-', -1), null)
                                                AS reagent_kit_barcode
-            , IF(lm.instrument_model = 'NovaSeq', ExtractValue(ri.run_parameters_xml, '//SbsCycleKit'), null)
+            , IF(lm.instrument_model = 'NovaSeq', EXTRACTVALUE(ri.run_parameters_xml, '//SbsCycleKit'), null)
                                                AS sbs_cycle_kit
+            , IF(INSTR(EXTRACTVALUE(ri.run_parameters_xml, '//RecipeVersion'), '_CustomPrimer_') > 0, 'Yes', 'No') 
+                                                AS custom_primer_used
+            , SUBSTRING_INDEX(EXTRACTVALUE(ri.run_parameters_xml, '//ConsumableInfo[Type="Reagent"]/Name'), ' ', 1) 
+                                                AS kit_type
+            , SUBSTRING_INDEX(EXTRACTVALUE(ri.run_parameters_xml, '//ConsumableInfo[Type="Reagent"]/Name'), ' ', -1) 
+                                                AS cycle_number
+            , qc.qc_complete_date
             , IF(lm.qc_seq = 1, 'passed', IF(lm.qc_seq = '0', 'failed', lm.qc_seq ))
                                                AS qc_outcome
             , IF(r.rp__sbs_consumable_version = '1', 'v1', IF(r.rp__sbs_consumable_version = '3', 'v1.5', r.rp__sbs_consumable_version))
@@ -86,6 +93,10 @@ CREATE OR REPLACE VIEW [reporting].billing_report_view_v2 AS
         , sample_lanes.stock_plate_barcode -- grouped
         , GROUP_CONCAT(DISTINCT sample_lanes.reagent_kit_barcode SEPARATOR ';') AS reagent_kit_barcode -- effectively 1 to 1 with platform
         , GROUP_CONCAT(DISTINCT sample_lanes.sbs_cycle_kit SEPARATOR ';')  AS sbs_cycle_kit -- effectively 1 to 1 with platform
+        , GROUP_CONCAT(DISTINCT sample_lanes.custom_primer_used SEPARATOR ';') AS custom_primer_used
+        , GROUP_CONCAT(DISTINCT sample_lanes.kit_type SEPARATOR ';') AS kit_type
+        , GROUP_CONCAT(DISTINCT sample_lanes.cycle_number SEPARATOR ';') AS cycle_number
+        , sample_lanes.qc_complete_date
         , sample_lanes.qc_outcome -- grouped
         , GROUP_CONCAT(DISTINCT sample_lanes.`v1/1.5` SEPARATOR ';') AS `v1/1.5`
         , sample_lanes.xp -- grouped
@@ -103,6 +114,7 @@ CREATE OR REPLACE VIEW [reporting].billing_report_view_v2 AS
         sample_lanes.study_id
         , project_cost_code
         , platform
+        , qc_complete_date
         , qc_outcome
         , sample_lanes.xp
         , sample_lanes.sp
