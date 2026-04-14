@@ -96,7 +96,7 @@ CREATE OR REPLACE VIEW [reporting].billing_report_view_v2 AS
         , GROUP_CONCAT(DISTINCT sample_lanes.custom_primer_used SEPARATOR ';') AS custom_primer_used
         , GROUP_CONCAT(DISTINCT sample_lanes.kit_type SEPARATOR ';') AS kit_type
         , GROUP_CONCAT(DISTINCT sample_lanes.cycle_number SEPARATOR ';') AS cycle_number
-        , MAX(sample_lanes.qc_complete_date) AS qc_complete_date
+        , MIN(sample_lanes.qc_complete_date) AS qc_complete_date
         , sample_lanes.qc_outcome -- grouped
         , GROUP_CONCAT(DISTINCT sample_lanes.`v1/1.5` SEPARATOR ';') AS `v1/1.5`
         , sample_lanes.xp -- grouped
