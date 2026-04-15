@@ -1,0 +1,4 @@
+fileignoreconfig:
+- filename: views/billing_report_view_v2.sql
+  checksum: 05992f870336df2c806d8671ba122a9339ce1f79d14c25b4346af6390225a100
+version: "1.0"
