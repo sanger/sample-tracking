@@ -96,40 +96,40 @@ eseq_qc_complete AS (
 eseq_sample_lanes AS (
     SELECT
         r.id_eseq_run_tmp
-        , f.id_flowcell_lims AS lane_id
-        , f.cost_code AS project_cost_code
+        , fc.id_flowcell_lims AS lane_id
+        , fc.cost_code AS project_cost_code
         , st.name AS study_name
-        , st.id_study_tmp AS study_id
-        , rl.lane AS lane_position
-        , rl.instrument_model AS platform
+        , st.id_study_lims AS study_id
+        , lm.lane AS lane_position
+        , lm.instrument_model AS platform
         , sr.labware_human_barcode AS stock_plate_barcode
         , s.id_sample_tmp
-        , f.id_flowcell_lims AS batch_id
-        , IF(f.custom_primer_kit_used = 1, 'Yes', IF(f.custom_primer_kit_used = 0, 'No', NULL)) AS custom_primer_used
-        , IF(rl.qc_seq = 1, 'passed', IF(rl.qc_seq = 0, 'failed', rl.qc_seq)) AS qc_outcome
+        , fc.id_flowcell_lims AS batch_id
+        , IF(fc.custom_primer_kit_used = 1, 'Yes', IF(fc.custom_primer_kit_used = 0, 'No', NULL)) AS custom_primer_used
+        , IF(lm.qc_seq = 1, 'passed', IF(lm.qc_seq = 0, 'failed', lm.qc_seq)) AS qc_outcome
         , JSON_EXTRACT(r.run_parameters, '$.Cycles.R1') AS read1
         , JSON_EXTRACT(r.run_parameters, '$.Cycles.R2') AS read2
         , JSON_UNQUOTE(JSON_EXTRACT(r.run_parameters, '$.ThroughputSelection')) AS throughput_selection
         , JSON_UNQUOTE(JSON_EXTRACT(r.run_parameters, '$.KitConfiguration')) AS kit_configuration
-        , f.custom_primer_kit_used
-        , f.quant_method_used
-        , f.pipeline_id_lims AS library
+        , fc.custom_primer_kit_used
+        , fc.quant_method_used
+        , fc.pipeline_id_lims AS library
         , qc.qc_complete_date
     FROM [warehouse].eseq_run r
     JOIN eseq_qc_complete qc ON qc.id_eseq_run_tmp = r.id_eseq_run_tmp
-    JOIN [warehouse].eseq_run_lane_metrics rl ON r.folder_name = rl.run_folder_name
-    JOIN [warehouse].eseq_product_metrics pm ON rl.id_run = pm.id_run
-    JOIN [warehouse].eseq_flowcell f ON pm.id_eseq_flowcell_tmp = f.id_eseq_flowcell_tmp
-    LEFT JOIN [warehouse].study st ON f.id_study_tmp = st.id_study_tmp
-    LEFT JOIN [warehouse].sample s ON f.id_sample_tmp = s.id_sample_tmp
+    JOIN [warehouse].eseq_run_lane_metrics lm ON r.folder_name = lm.run_folder_name
+    JOIN [warehouse].eseq_product_metrics pm ON lm.id_run = pm.id_run
+    JOIN [warehouse].eseq_flowcell fc ON pm.id_eseq_flowcell_tmp = fc.id_eseq_flowcell_tmp
+    LEFT JOIN [warehouse].study st ON fc.id_study_tmp = st.id_study_tmp
+    LEFT JOIN [warehouse].sample s ON fc.id_sample_tmp = s.id_sample_tmp
     LEFT JOIN [warehouse].stock_resource sr ON sr.id_sample_tmp = s.id_sample_tmp
 ),
 -- CTE 6: eseq_lane_proportions
 -- For each Aviti lane: count samples & compute 1/N
 eseq_lane_proportions AS (
     SELECT
-        lane_id,
-        FORMAT(1 / COUNT(*), 10) AS proportion_of_lane_per_sample
+        lane_id
+        , FORMAT(1 / COUNT(*), 10) AS proportion_of_lane_per_sample
     FROM eseq_sample_lanes
     GROUP BY lane_id
 )
@@ -182,7 +182,7 @@ UNION ALL
 SELECT
     eseq_sample_lanes.platform
     , eseq_sample_lanes.project_cost_code
-    , eseq_sample_lanes.study_id
+    , eseq_sample_lanes.study_id  -- id_study_lims for consistency with Illumina
     , eseq_sample_lanes.lane_position
     , eseq_sample_lanes.batch_id
     , GROUP_CONCAT(DISTINCT eseq_sample_lanes.study_name SEPARATOR ';') AS study_name
@@ -210,7 +210,7 @@ SELECT
 FROM eseq_sample_lanes
 JOIN eseq_lane_proportions ON eseq_lane_proportions.lane_id = eseq_sample_lanes.lane_id
 GROUP BY
-    eseq_sample_lanes.study_id
+    st.id_study_tmp  -- unique key (even though SELECT shows id_study_lims for user consistency)
     , eseq_sample_lanes.project_cost_code
     , eseq_sample_lanes.platform
     , eseq_sample_lanes.qc_outcome
