@@ -96,7 +96,7 @@ eseq_qc_complete AS (
 eseq_sample_lanes AS (
     SELECT
         r.id_eseq_run_tmp
-        , fc.id_flowcell_lims AS lane_id
+        , fc.entity_id_lims AS lane_id
         , fc.cost_code AS project_cost_code
         , st.name AS study_name
         , st.id_study_lims AS study_id
