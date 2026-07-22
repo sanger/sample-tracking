@@ -210,7 +210,7 @@ SELECT
 FROM eseq_sample_lanes
 JOIN eseq_lane_proportions ON eseq_lane_proportions.lane_id = eseq_sample_lanes.lane_id
 GROUP BY
-    st.id_study_tmp  -- unique key (even though SELECT shows id_study_lims for user consistency)
+    eseq_sample_lanes.study_id  -- unique key (even though SELECT shows id_study_lims for user consistency)
     , eseq_sample_lanes.project_cost_code
     , eseq_sample_lanes.platform
     , eseq_sample_lanes.qc_outcome
