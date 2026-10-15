@@ -123,7 +123,6 @@ eseq_sample_lanes AS (
     LEFT JOIN [warehouse].study st ON fc.id_study_tmp = st.id_study_tmp
     LEFT JOIN [warehouse].sample s ON fc.id_sample_tmp = s.id_sample_tmp
     LEFT JOIN [warehouse].stock_resource sr ON sr.id_sample_tmp = s.id_sample_tmp
-    WHERE lm.qc_seq IS NOT NULL
 ),
 -- CTE 6: eseq_lane_proportions
 -- For each Aviti lane: count samples & compute 1/N
