@@ -186,7 +186,7 @@ SELECT
     , eseq_sample_lanes.lane_position
     , eseq_sample_lanes.batch_id
     , GROUP_CONCAT(DISTINCT eseq_sample_lanes.study_name SEPARATOR ';') AS study_name
-    , eseq_sample_lanes.stock_plate_barcode
+    , GROUP_CONCAT(DISTINCT eseq_sample_lanes.stock_plate_barcode SEPARATOR ';') AS stock_plate_barcode
     , NULL AS reagent_kit_barcode
     , NULL AS sbs_cycle_kit
     , GROUP_CONCAT(DISTINCT eseq_sample_lanes.custom_primer_used SEPARATOR ';') AS custom_primer_used
@@ -217,7 +217,6 @@ GROUP BY
     , eseq_sample_lanes.batch_id
     , eseq_sample_lanes.library
     , eseq_sample_lanes.lane_position
-    , eseq_sample_lanes.stock_plate_barcode
 ORDER BY 
     study_name
     , project_cost_code
