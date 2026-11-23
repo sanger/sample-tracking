@@ -86,10 +86,15 @@ lane_proportions AS (
 eseq_qc_complete AS (
     SELECT
         r.id_eseq_run_tmp,
-        r.date_completed AS qc_complete_date
+        MIN(rs.date) AS qc_complete_date
     FROM [warehouse].eseq_run r
-    WHERE r.outcome = 'OutcomeCompleted'
-      AND DATE(r.date_completed) >= DATE_SUB(NOW(), INTERVAL 2 YEAR)
+    JOIN [warehouse].eseq_run_lane_metrics lm ON lm.run_folder_name = r.folder_name
+    JOIN [warehouse].iseq_run_status rs ON rs.id_run = lm.id_run
+    JOIN [warehouse].iseq_run_status_dict d ON d.id_run_status_dict = rs.id_run_status_dict
+    WHERE d.description = 'run archived'
+      AND r.outcome = 'OutcomeCompleted'
+      AND DATE(rs.date) >= DATE_SUB(NOW(), INTERVAL 2 YEAR)
+    GROUP BY r.id_eseq_run_tmp
 ),
 -- CTE 5: eseq_sample_lanes
 -- Collect all Aviti samples on a lane
